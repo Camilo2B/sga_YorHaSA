@@ -1,4 +1,4 @@
-SGA - Sistema de Gestión de Alojamiento [<Nombre del Alojamiento>]
+SGA - Sistema de Gestión de Alojamiento [<YorHaSA>]
 Este proyecto es una aplicación desarrollada en Java con Spring Boot para la gestión y administración de alojamientos.
 
 Integrantes del Equipo
@@ -11,5 +11,5 @@ Gradle Wrapper: Incluido en el proyecto (no requiere instalación previa de Grad
 
 Instrucciones de Ejecución
 Clonar el repositorio:```bash
-git clone https://github.com/Tomas-Castano/sga.git
+git clone https://github.com/Camilo2B/sga_YorHaSA
 cd sga
