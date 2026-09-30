@@ -8,13 +8,6 @@ import java.util.Objects;
 
 /**
  * Value Object que representa un monto en pesos colombianos (COP).
- * <p>
- * 3.4 - Moneda única: peso colombiano (COP), sin decimales. Todo valor
- * monetario se representa con un tipo de precisión exacta (BigDecimal);
- * prohibido usar float o double. Redondeo al peso más cercano.
- * <p>
- * Un record ya provee equals/hashCode por valor y es inmutable por diseño
- * (no hay forma de mutar 'monto' una vez construido).
  */
 public record Dinero(BigDecimal monto) {
 
@@ -22,11 +15,22 @@ public record Dinero(BigDecimal monto) {
 
     public Dinero {
         Objects.requireNonNull(monto, "El monto no puede ser nulo");
+        if (monto.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ReglaDominioException("El monto de dinero no puede ser negativo");
+        }
         // 3.4: redondeo al peso más cercano, sin decimales.
         monto = monto.setScale(0, RoundingMode.HALF_UP);
     }
 
     public static Dinero of(long monto) {
+        return new Dinero(BigDecimal.valueOf(monto));
+    }
+
+    public static Dinero de(BigDecimal monto) {
+        return new Dinero(monto);
+    }
+
+    public static Dinero de(long monto) {
         return new Dinero(BigDecimal.valueOf(monto));
     }
 
@@ -51,10 +55,6 @@ public record Dinero(BigDecimal monto) {
         return new Dinero(this.monto.multiply(BigDecimal.valueOf(factor)));
     }
 
-    /**
-     * Multiplica por un porcentaje/factor decimal (ej. 0.5 para 50%).
-     * Útil para calcular retenciones, descuentos y recargos.
-     */
     public Dinero multiplicar(BigDecimal factor) {
         Objects.requireNonNull(factor, "El factor no puede ser nulo");
         return new Dinero(this.monto.multiply(factor));
