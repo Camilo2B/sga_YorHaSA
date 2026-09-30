@@ -6,6 +6,7 @@ plugins {
 
 group = 'co.edu.uniquindio'
 version = '0.0.1-SNAPSHOT'
+description = 'SGA-Sistema-de-Gestión-de-Alojamiento'
 
 java {
 	toolchain {
