@@ -1,9 +1,14 @@
 package co.edu.uniquindio.sga.application.exception;
 
-import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
+import java.util.UUID;
 
-public class ReservaNoEncontradadException extends RuntimeException {
-    public ReservaNoEncontradadException(CodigoReserva codigo) {
-        super("No se encontro la reserva con codigo: " + codigo);
+public class ReservaNoEncontradaException extends RuntimeException {
+
+    public ReservaNoEncontradaException(UUID id) {
+        super("No se encontró la reserva con ID: " + id);
+    }
+
+    public ReservaNoEncontradaException(String mensaje) {
+        super(mensaje);
     }
 }
