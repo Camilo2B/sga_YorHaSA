@@ -1,0 +1,286 @@
+openapi: 3.1.0
+info:
+  title: SGA - Búnker Orbital YoRHa API
+  description: API OpenAPI 3.1 para el Sistema de Gestión de Alojamiento (SGA) del Búnker Orbital YoRHa.
+  version: 1.0.0
+
+paths:
+  /api/reservas:
+    post:
+      summary: Crear una nueva reserva (CrearReservaUseCase)
+      operationId: crearReserva
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearReservaRequest'
+      responses:
+        '201':
+          description: Reserva creada exitosamente en estado PENDIENTE.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaResponse'
+        '400':
+          description: Error de regla de dominio (capacidad superada, fechas inválidas, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+    get:
+      summary: Consultar reservas filtradas por estado (ConsultarReservasPorEstadoUseCase)
+      operationId: consultarReservas
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDIENTE, CONFIRMADA, EN_CURSO, FINALIZADA, CANCELADA, NO_SHOW]
+      responses:
+        '200':
+          description: Listado de reservas encontradas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservaResponse'
+
+  /api/reservas/{codigo}:
+    get:
+      summary: Consultar detalle de una reserva por su código
+      operationId: obtenerReservaPorCodigo
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: RES-2026-00001
+      responses:
+        '200':
+          description: Detalle de la reserva consultada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaResponse'
+        '404':
+          description: Reserva no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /api/reservas/{codigo}/confirmar:
+    put:
+      summary: Confirmar una reserva pendiente con su anticipo (ConfirmarReservaUseCase)
+      operationId: confirmarReserva
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva confirmada correctamente.
+        '400':
+          description: Transición de estado inválida o plazo de confirmación vencido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /api/reservas/{codigo}/cancelar:
+    put:
+      summary: Cancelar una reserva aplicando política de retención (CancelarReservaUseCase)
+      operationId: cancelarReserva
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva cancelada exitosamente y disponibilidad liberada.
+        '400':
+          description: No se puede cancelar una reserva finalizada o en curso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /api/reservas/{codigo}/registrar-llegada:
+    put:
+      summary: Registrar la llegada/check-in del grupo (RegistrarLlegadaUseCase)
+      operationId: registrarLlegada
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registro realizado. La reserva pasa a EN_CURSO y el apartamento a OCUPADO.
+        '400':
+          description: El apartamento no está en estado PREPARADO o no es la fecha de entrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /api/reservas/{codigo}/registrar-salida:
+    put:
+      summary: Registrar la salida/check-out del grupo (RegistrarSalidaUseCase)
+      operationId: registrarSalida
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Salida registrada. La reserva pasa a FINALIZADA.
+        '400':
+          description: El folio tiene saldo pendiente sin autorización del administrador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /api/reservas/{codigo}/no-show:
+    put:
+      summary: Declarar no-show por ausencia del titular tras la hora límite (DeclararNoShowUseCase)
+      operationId: declararNoShow
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva marcada como NO_SHOW y retención del 100% del anticipo aplicada.
+        '400':
+          description: Transición inválida para el estado actual de la reserva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /api/apartamentos/{id}/bloquear:
+    post:
+      summary: Bloquear un apartamento para mantenimiento o uso administrativo (BloquearApartamentoUseCase)
+      operationId: bloquearApartamento
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloquearApartamentoRequest'
+      responses:
+        '201':
+          description: Bloqueo registrado exitosamente.
+        '400':
+          description: Conflicto con reservas activas en el rango seleccionado (RN-07).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+components:
+  schemas:
+    CrearReservaRequest:
+      type: object
+      required:
+        - apartamentoId
+        - fechaEntrada
+        - fechaSalida
+        - titularId
+        - cantidadOcupantes
+        - tieneMascota
+      properties:
+        apartamentoId:
+          type: string
+          example: ATK-001
+        fechaEntrada:
+          type: string
+          format: date
+          example: "2026-10-15"
+        fechaSalida:
+          type: string
+          format: date
+          example: "2026-10-20"
+        titularId:
+          type: string
+          example: "1094123456"
+        cantidadOcupantes:
+          type: integer
+          example: 3
+        tieneMascota:
+          type: boolean
+          example: false
+
+    BloquearApartamentoRequest:
+      type: object
+      required:
+        - fechaInicio
+        - fechaFin
+        - motivo
+      properties:
+        fechaInicio:
+          type: string
+          format: date
+          example: "2026-11-01"
+        fechaFin:
+          type: string
+          format: date
+          example: "2026-11-05"
+        motivo:
+          type: string
+          example: "Mantenimiento preventivo de sistemas orbitales"
+
+    ReservaResponse:
+      type: object
+      properties:
+        codigo:
+          type: string
+          example: RES-2026-00001
+        apartamentoId:
+          type: string
+          example: ATK-001
+        estado:
+          type: string
+          example: PENDIENTE
+        fechaEntrada:
+          type: string
+          format: date
+        fechaSalida:
+          type: string
+          format: date
+        valorTotal:
+          type: number
+          example: 500000
+
+    ErrorRespuesta:
+      type: object
+      properties:
+        mensaje:
+          type: string
+          example: "El número de ocupantes excede la capacidad del apartamento (RN-02)."
+        codigoError:
+          type: string
+          example: "REGLA_DOMINIO_VIOLADA"
