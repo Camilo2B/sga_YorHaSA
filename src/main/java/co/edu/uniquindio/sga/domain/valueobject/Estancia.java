@@ -4,6 +4,8 @@ import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -38,6 +40,15 @@ public record Estancia(LocalDate entrada, LocalDate salida) {
     public boolean seSolapaCon(Estancia otra) {
         Objects.requireNonNull(otra, "La estancia a comparar no puede ser nula");
         return this.entrada.isBefore(otra.salida) && otra.entrada.isBefore(this.salida);
+    }
+
+    // RN-05: sirve para liquidar noche por noche, aplicando la tarifa vigente en cada una
+    public List<LocalDate> nochesOcupadas() {
+        List<LocalDate> resultado = new ArrayList<>();
+        for (LocalDate noche = entrada; noche.isBefore(salida); noche = noche.plusDays(1)) {
+            resultado.add(noche);
+        }
+        return List.copyOf(resultado);
     }
 
     /**

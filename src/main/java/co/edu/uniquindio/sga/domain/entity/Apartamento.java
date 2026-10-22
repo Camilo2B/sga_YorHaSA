@@ -4,6 +4,7 @@ import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import co.edu.uniquindio.sga.domain.valueobject.Dormitorio;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 import co.edu.uniquindio.sga.domain.valueobject.EstadoOperativo;
+import co.edu.uniquindio.sga.domain.valueobject.TipoApartamento;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public final class Apartamento {
     private final String nombre;
     private final int capacidad;
     private final List<Dormitorio> dormitorios;
+    private final TipoApartamento tipo;
     private EstadoOperativo estadoOperativo;
     private final List<Tarifa> tarifas = new ArrayList<>();
     private final List<Bloqueo> bloqueos = new ArrayList<>();
@@ -38,11 +40,12 @@ public final class Apartamento {
     private boolean activo;
 
     private Apartamento(String identificacion, String nombre, int capacidad,
-                        List<Dormitorio> dormitorios, EstadoOperativo estadoOperativo) {
+                        List<Dormitorio> dormitorios, TipoApartamento tipo, EstadoOperativo estadoOperativo) {
         this.identificacion = identificacion;
         this.nombre = nombre;
         this.capacidad = capacidad;
         this.dormitorios = new ArrayList<>(dormitorios);
+        this.tipo = tipo;
         this.estadoOperativo = estadoOperativo;
         this.activo = true;
     }
@@ -64,7 +67,7 @@ public final class Apartamento {
             throw new ReglaDominioException("Un apartamento debe tener al menos un dormitorio");
         }
         Objects.requireNonNull(estadoOperativoInicial, "El estado operativo inicial no puede ser nulo");
-        return new Apartamento(identificacion, nombre, capacidad, dormitorios, estadoOperativoInicial);
+        return new Apartamento(identificacion, nombre, capacidad, dormitorios, string, estadoOperativoInicial);
     }
 
     /**
@@ -200,6 +203,10 @@ public final class Apartamento {
 
     public boolean activo() {
         return activo;
+    }
+
+    public TipoApartamento tipo() {
+        return tipo;
     }
 
     @Override
