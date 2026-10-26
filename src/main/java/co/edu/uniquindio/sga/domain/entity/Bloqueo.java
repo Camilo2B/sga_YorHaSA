@@ -50,7 +50,7 @@ public class Bloqueo {
         this.vigente = false;
     }
 
-    public idBloqueo getId() {
+    public IdBloqueo getId() {
         return id;
     }
 

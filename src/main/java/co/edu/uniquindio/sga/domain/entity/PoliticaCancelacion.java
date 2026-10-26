@@ -2,6 +2,7 @@ package co.edu.uniquindio.sga.domain.entity;
 
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import co.edu.uniquindio.sga.domain.valueobject.TramoAntelacion;
+import co.edu.uniquindio.sga.domain.valueobject.VersionPolitica;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,11 +27,11 @@ public final class PoliticaCancelacion {
 
     private static final int MINIMO_TRAMOS = 2;
 
-    private final int numeroVersion;
+    private final VersionPolitica numeroVersion;
     private final LocalDate vigenteDesde;
     private final List<TramoAntelacion> tramos;
 
-    private PoliticaCancelacion(int numeroVersion, LocalDate vigenteDesde, List<TramoAntelacion> tramos) {
+    private PoliticaCancelacion(VersionPolitica numeroVersion, LocalDate vigenteDesde, List<TramoAntelacion> tramos) {
         this.numeroVersion = numeroVersion;
         this.vigenteDesde = vigenteDesde;
         this.tramos = tramos;
@@ -63,7 +64,7 @@ public final class PoliticaCancelacion {
                         "Ningún tramo de la política de versión " + numeroVersion + " cubre " + horasDeAntelacion + " horas de antelación"));
     }
 
-    public int numeroVersion() {
+    public VersionPolitica numeroVersion() {
         return numeroVersion;
     }
 

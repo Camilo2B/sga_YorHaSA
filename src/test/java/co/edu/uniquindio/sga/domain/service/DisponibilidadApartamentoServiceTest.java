@@ -6,13 +6,12 @@ import co.edu.uniquindio.sga.domain.entity.Titular;
 import co.edu.uniquindio.sga.domain.repository.ApartamentoRepository;
 import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
 import co.edu.uniquindio.sga.domain.valueobject.*;
-import co.edu.uniquindio.sga.infrastructure.persistence.inmemory.InMemoryApartamentoRepository;
-import co.edu.uniquindio.sga.infrastructure.persistence.inmemory.InMemoryReservaRepository;
+import co.edu.uniquindio.sga.infrastructure.persistence.inmemory.ApartamentoRepositoryInMemory;
+import co.edu.uniquindio.sga.infrastructure.persistence.inmemory.ReservaRepositoryInMemory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -27,8 +26,8 @@ class DisponibilidadApartamentoServiceTest {
 
     @BeforeEach
     void setUp() {
-        apartamentoRepository = new InMemoryApartamentoRepository();
-        reservaRepository = new InMemoryReservaRepository();
+        apartamentoRepository = new ApartamentoRepositoryInMemory();
+        reservaRepository = new ReservaRepositoryInMemory();
         servicio = new DisponibilidadApartamentoService(apartamentoRepository, reservaRepository);
     }
 

@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * Implementación en memoria usando HashMap exigida por la rúbrica para la Entrega 1.
  */
-public class InMemoryApartamentoRepository implements ApartamentoRepository {
+public class ApartamentoRepositoryInMemory implements ApartamentoRepository {
 
     private final Map<String, Apartamento> tablaApartamentos = new HashMap<>();
 
