@@ -1,5 +1,20 @@
 package co.edu.uniquindio.sga.infrastructure.config;
 
+/**
+ * PENDIENTE (Guía 09, Parte 3): registro de los servicios de dominio y de los parámetros de la Ficha como beans.
+ * Está comentado a propósito: la versión anterior importaba clases que todavía no existen
+ * (LiquidacionEstanciaService, OperacionEstanciaService, RetencionService, UmbralEdadFacturable) y
+ * construía HorarioAlojamiento y HoraLimiteNoShow, que hoy son clases vacías. Para reactivarlo:
+ * 1) crear esas clases, 2) agregar las propiedades sga.alojamiento.* a application.properties y
+ * 3) descomentar y ajustar los constructores (DisponibilidadApartamentoService recibe
+ * ApartamentoRepository y ReservaRepository).
+ */
+public class DomainServiceConfig {
+}
+
+/* ---------- Versión anterior, para reactivar más adelante ----------
+package co.edu.uniquindio.sga.infrastructure.config;
+
 import co.edu.uniquindio.sga.domain.repository.BloqueoRepository;
 import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
 import co.edu.uniquindio.sga.domain.service.DisponibilidadApartamentoService;
@@ -16,11 +31,11 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalTime;
 
-/** Servicios de dominio y parámetros del alojamiento registrados como beans (Guía 09, Parte 3) */
+/** Servicios de dominio y parámetros del alojamiento registrados como beans (Guía 09, Parte 3) * /
 @Configuration
 public class DomainServiceConfig {
 
-    /** Parámetros de la Ficha del Alojamiento (Anexo A): se leen de application.properties, no se queman en el código */
+    /** Parámetros de la Ficha del Alojamiento (Anexo A): se leen de application.properties, no se queman en el código * /
     @Bean
     public UmbralEdadFacturable umbralEdadFacturable(
             @Value("${sga.alojamiento.umbral-edad-facturable}") int anios) {
@@ -46,7 +61,7 @@ public class DomainServiceConfig {
         return new HoraLimiteNoShow(LocalTime.parse(hora));
     }
 
-    /** Servicios de dominio: siguen siendo Java puro, Spring los crea aquí sin que el dominio lo sepa */
+    /** Servicios de dominio: siguen siendo Java puro, Spring los crea aquí sin que el dominio lo sepa * /
     @Bean
     public DisponibilidadApartamentoService disponibilidadApartamentoService(
             ReservaRepository reservaRepository, BloqueoRepository bloqueoRepository) {
@@ -68,3 +83,4 @@ public class DomainServiceConfig {
         return new RetencionService(horario);
     }
 }
+---------- fin versión anterior ---------- */

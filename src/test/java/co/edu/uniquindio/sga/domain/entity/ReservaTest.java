@@ -8,14 +8,13 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ReservaTest {
 
     private Reserva crearReservaEjemplo() {
-        UUID apartamentoId = UUID.randomUUID();
+        String apartamentoId = "APT-101";
         Titular titular = Titular.crear("12345678", "Carlos Pérez", LocalDate.of(1990, 5, 15));
         Estancia estancia = new Estancia(LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 5));
 

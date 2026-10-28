@@ -50,8 +50,16 @@ public final class Apartamento {
         this.activo = true;
     }
 
+    /** Crea un apartamento sin tipo asignado todavía (el tipo es opcional hasta cargar el inventario de la Ficha). */
     public static Apartamento crear(String identificacion, String nombre, int capacidad,
                                     List<Dormitorio> dormitorios, EstadoOperativo estadoOperativoInicial) {
+        return crear(identificacion, nombre, capacidad, dormitorios, null, estadoOperativoInicial);
+    }
+
+    /** @param tipo puede ser null mientras no se haya clasificado el apartamento */
+    public static Apartamento crear(String identificacion, String nombre, int capacidad,
+                                    List<Dormitorio> dormitorios, TipoApartamento tipo,
+                                    EstadoOperativo estadoOperativoInicial) {
         if (identificacion == null || identificacion.isBlank()) {
             throw new ReglaDominioException("La identificación del apartamento no puede estar vacía");
         }
@@ -67,7 +75,7 @@ public final class Apartamento {
             throw new ReglaDominioException("Un apartamento debe tener al menos un dormitorio");
         }
         Objects.requireNonNull(estadoOperativoInicial, "El estado operativo inicial no puede ser nulo");
-        return new Apartamento(identificacion, nombre, capacidad, dormitorios, string, estadoOperativoInicial);
+        return new Apartamento(identificacion, nombre, capacidad, dormitorios, tipo, estadoOperativoInicial);
     }
 
     /**

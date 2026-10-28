@@ -2,13 +2,10 @@ package co.edu.uniquindio.sga.domain.service;
 
 import co.edu.uniquindio.sga.domain.entity.Apartamento;
 import co.edu.uniquindio.sga.domain.entity.Bloqueo;
-import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import co.edu.uniquindio.sga.domain.repository.ApartamentoRepository;
 import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
-import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -33,11 +30,8 @@ public class GestionBloqueoService {
         Apartamento apartamento = apartamentoRepository.buscarPorId(apartamentoId)
                 .orElseThrow(() -> new ReglaDominioException("El apartamento indicado no existe: " + apartamentoId));
 
-        List<Reserva> reservasExistentes = reservaRepository.buscarPorApartamento(apartamentoId);
-
-        boolean hayReservaConflicto = reservasExistentes.stream()
-                .filter(r -> r.getEstado() == EstadoReserva.PENDIENTE || r.getEstado() == EstadoReserva.CONFIRMADA || r.getEstado() == EstadoReserva.EN_CURSO)
-                .anyMatch(r -> r.getEstancia().seSolapaCon(bloqueo.rango()));
+        // 7.3: no se puede bloquear sobre noches que ya tengan reservas activas
+        boolean hayReservaConflicto = !reservaRepository.buscarActivasPorApartamento(apartamentoId, bloqueo.rango()).isEmpty();
 
         if (hayReservaConflicto) {
             throw new ReglaDominioException("No se puede registrar el bloqueo: existen reservas activas en las fechas solicitadas.");

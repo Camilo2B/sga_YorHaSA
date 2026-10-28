@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -73,7 +72,7 @@ class DisponibilidadApartamentoServiceTest {
         );
 
         Reserva reserva = new Reserva(
-                UUID.nameUUIDFromBytes("APT-101".getBytes()),
+                "APT-101",
                 Titular.crear("123", "Ana", LocalDate.of(1995, 4, 12)),
                 estanciaExistente,
                 CanalOrigen.DIRECTO,

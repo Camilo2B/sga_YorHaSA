@@ -5,7 +5,6 @@ import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import co.edu.uniquindio.sga.domain.repository.ApartamentoRepository;
 import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
-import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 
 import java.util.List;
@@ -32,9 +31,8 @@ public class DisponibilidadApartamentoService {
         Apartamento apartamento = apartamentoRepository.buscarPorId(apartamentoId)
                 .orElseThrow(() -> new ReglaDominioException("No se encontró el apartamento con ID: " + apartamentoId));
 
-        // Obtener estancias de reservas activas o vigentes para ese apartamento
-        List<Estancia> estanciasReservadas = reservaRepository.buscarPorApartamento(apartamento.identificacion()).stream()
-                .filter(r -> r.getEstado() == EstadoReserva.PENDIENTE || r.getEstado() == EstadoReserva.CONFIRMADA || r.getEstado() == EstadoReserva.EN_CURSO)
+        // Solo las reservas activas que se solapan con la estancia consultada (RN-01, RN-12)
+        List<Estancia> estanciasReservadas = reservaRepository.buscarActivasPorApartamento(apartamento.identificacion(), estancia).stream()
                 .map(Reserva::getEstancia)
                 .toList();
 

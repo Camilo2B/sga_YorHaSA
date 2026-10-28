@@ -47,7 +47,7 @@ public final class PoliticaCancelacion {
         if (tramos.size() < MINIMO_TRAMOS) {
             throw new ReglaDominioException("Una política de cancelación debe tener al menos " + MINIMO_TRAMOS + " tramos de antelación");
         }
-        return new PoliticaCancelacion(numeroVersion, vigenteDesde, List.copyOf(tramos));
+        return new PoliticaCancelacion(new VersionPolitica(numeroVersion, vigenteDesde), vigenteDesde, List.copyOf(tramos));
     }
 
     /**
@@ -80,7 +80,7 @@ public final class PoliticaCancelacion {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof PoliticaCancelacion otra)) return false;
-        return this.numeroVersion == otra.numeroVersion;
+        return this.numeroVersion.equals(otra.numeroVersion);
     }
 
     @Override

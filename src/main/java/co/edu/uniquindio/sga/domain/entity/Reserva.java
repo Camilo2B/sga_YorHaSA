@@ -27,7 +27,7 @@ import java.util.UUID;
 public class Reserva {
 
     private final UUID id;
-    private final UUID apartamentoId;
+    private final String apartamentoId;
     private final Titular titular;
     private final Estancia estancia;
     private final CanalOrigen canalOrigen;
@@ -37,7 +37,7 @@ public class Reserva {
     private final List<Ocupante> ocupantes;
     private final List<Novedad> novedades;
 
-    public Reserva(UUID apartamentoId, Titular titular, Estancia estancia, CanalOrigen canalOrigen, Cotizacion cotizacion) {
+    public Reserva(String apartamentoId, Titular titular, Estancia estancia, CanalOrigen canalOrigen, Cotizacion cotizacion) {
         this.id = UUID.randomUUID();
         this.apartamentoId = Objects.requireNonNull(apartamentoId, "El ID del apartamento no puede ser nulo.");
         this.titular = Objects.requireNonNull(titular, "El titular de la reserva no puede ser nulo.");
@@ -53,7 +53,7 @@ public class Reserva {
         inicializarCargosHospedaje();
     }
 
-    public Reserva(UUID id, UUID apartamentoId, Titular titular, Estancia estancia, CanalOrigen canalOrigen,
+    public Reserva(UUID id, String apartamentoId, Titular titular, Estancia estancia, CanalOrigen canalOrigen,
                    EstadoReserva estado, Cotizacion cotizacion, Folio folio, List<Ocupante> ocupantes, List<Novedad> novedades) {
         this.id = Objects.requireNonNull(id, "El ID de la reserva no puede ser nulo.");
         this.apartamentoId = Objects.requireNonNull(apartamentoId, "El ID del apartamento no puede ser nulo.");
@@ -165,7 +165,7 @@ public class Reserva {
         return id;
     }
 
-    public UUID getApartamentoId() {
+    public String getApartamentoId() {
         return apartamentoId;
     }
 

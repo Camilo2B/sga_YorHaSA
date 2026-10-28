@@ -23,7 +23,7 @@ public class PoliticaCancelacionRepositoryInMemory implements PoliticaCancelacio
         return politicas.values()
                 .stream()
                 .filter(politica -> !politica.numeroVersion().vigenteDesde().isAfter(fecha))
-                .max(Comparator.comparing(politica -> politica.getVersion().vigenteDesde()));
+                .max(Comparator.comparing(politica -> politica.numeroVersion().vigenteDesde()));
     }
 
     @Override
@@ -32,6 +32,6 @@ public class PoliticaCancelacionRepositoryInMemory implements PoliticaCancelacio
     }
 
     public void guardar(PoliticaCancelacion politica) {
-        politicas.put(politica.getVersion(), politica);
+        politicas.put(politica.numeroVersion(), politica);
     }
 }
