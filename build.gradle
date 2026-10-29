@@ -41,3 +41,12 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Swagger UI muestra el contrato docs/api/openapi.yaml (una sola fuente de verdad):
+// se copia a los recursos estáticos al compilar, así no hay dos copias que mantener.
+tasks.named('processResources') {
+	from('docs/api') {
+		include 'openapi.yaml'
+		into 'static'
+	}
+}
