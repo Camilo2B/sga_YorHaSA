@@ -7,6 +7,9 @@ import java.util.Optional;
 
 /**
  * Contrato de persistencia para el agregado Apartamento.
+ * <p>
+ * No hay "eliminar": 12.4 exige eliminación lógica, que se hace con Apartamento.desactivar()
+ * y un guardar(...) posterior; las reservas históricas siguen referenciando al apartamento.
  */
 public interface ApartamentoRepository {
 
@@ -15,6 +18,4 @@ public interface ApartamentoRepository {
     Optional<Apartamento> buscarPorId(String identificacion);
 
     List<Apartamento> obtenerTodos();
-
-    void eliminar(String identificacion);
 }

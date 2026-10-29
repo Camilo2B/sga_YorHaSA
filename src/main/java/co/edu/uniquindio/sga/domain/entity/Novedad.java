@@ -49,6 +49,11 @@ public final class Novedad {
         return new Novedad(UUID.randomUUID(), fecha, autor, descripcion, gravedad);
     }
 
+    /** Reconstruye una Novedad ya persistida (conserva su id). Solo para rehidratar desde la persistencia. */
+    public static Novedad reconstruir(UUID id, LocalDate fecha, String autor, String descripcion, Gravedad gravedad) {
+        return new Novedad(id, fecha, autor, descripcion, gravedad);
+    }
+
     public UUID id() {
         return id;
     }

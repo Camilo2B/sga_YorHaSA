@@ -79,6 +79,23 @@ public final class Apartamento {
     }
 
     /**
+     * Reconstruye un Apartamento ya persistido con todo su estado (hijos y bandera de activo).
+     * Es la forma de rehidratarlo desde la persistencia SIN setters ni constructores vacíos:
+     * el estado guardado ya pasó por las validaciones de crear(...) y de los métodos de negocio.
+     */
+    public static Apartamento reconstruir(String identificacion, String nombre, int capacidad,
+                                          List<Dormitorio> dormitorios, TipoApartamento tipo,
+                                          EstadoOperativo estadoOperativo, List<Tarifa> tarifas,
+                                          List<Bloqueo> bloqueos, List<Novedad> novedades, boolean activo) {
+        Apartamento apartamento = new Apartamento(identificacion, nombre, capacidad, dormitorios, tipo, estadoOperativo);
+        apartamento.tarifas.addAll(tarifas);
+        apartamento.bloqueos.addAll(bloqueos);
+        apartamento.novedades.addAll(novedades);
+        apartamento.activo = activo;
+        return apartamento;
+    }
+
+    /**
      * 7.6: transición validada por el propio enum (ver EstadoOperativo);
      * aquí no se repite la tabla de transiciones, solo se delega en ella.
      * La restricción "FUERA_DE_SERVICIO solo por administrador" es una

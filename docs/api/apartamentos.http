@@ -1,0 +1,59 @@
+### Recorrido del apartamento. Con la aplicación corriendo en http://localhost:8080
+### (en IntelliJ: abrir este archivo y pulsar el triángulo verde de cada petición)
+
+### 1) Crear un apartamento -> 201 Created + encabezado Location: /api/apartamentos/ATK-001
+POST http://localhost:8080/api/apartamentos
+Content-Type: application/json
+
+{
+  "identificacion": "ATK-001",
+  "nombre": "Attack Suite",
+  "capacidad": 4,
+  "dormitorios": [
+    { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" },
+    { "descripcion": "Dormitorio 2", "tipoCama": "Cama doble" }
+  ],
+  "estadoOperativoInicial": "PREPARADO"
+}
+
+### 2) Consultarlo -> 200 OK
+GET http://localhost:8080/api/apartamentos/ATK-001
+
+### 3) Crear el mismo otra vez -> 409 Conflict (regla L-04: identificación única)
+POST http://localhost:8080/api/apartamentos
+Content-Type: application/json
+
+{
+  "identificacion": "ATK-001",
+  "nombre": "Repetido",
+  "capacidad": 2,
+  "dormitorios": [ { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" } ],
+  "estadoOperativoInicial": "PREPARADO"
+}
+
+### 4) Capacidad 0 -> 400 Bad Request (la forma del mensaje es inválida, @Min(1))
+POST http://localhost:8080/api/apartamentos
+Content-Type: application/json
+
+{
+  "identificacion": "ATK-002",
+  "nombre": "Sin capacidad",
+  "capacidad": 0,
+  "dormitorios": [ { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" } ],
+  "estadoOperativoInicial": "PREPARADO"
+}
+
+### 5) Estado operativo que no existe -> 400 Bad Request (JSON con valor no permitido)
+POST http://localhost:8080/api/apartamentos
+Content-Type: application/json
+
+{
+  "identificacion": "ATK-003",
+  "nombre": "Estado raro",
+  "capacidad": 2,
+  "dormitorios": [ { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" } ],
+  "estadoOperativoInicial": "VOLANDO"
+}
+
+### 6) Apartamento que no existe -> 404 Not Found
+GET http://localhost:8080/api/apartamentos/NO-EXISTE

@@ -45,6 +45,14 @@ public final class Tarifa {
         return new Tarifa(UUID.randomUUID(), temporadaId, valorPorNoche, vigenteDesde);
     }
 
+    /**
+     * Reconstruye una Tarifa ya persistida (conserva su id). Solo la usa la capa de persistencia
+     * para rehidratar el agregado; no valida de nuevo porque el estado guardado ya pasó por crear(...).
+     */
+    public static Tarifa reconstruir(UUID id, UUID temporadaId, Dinero valorPorNoche, LocalDate vigenteDesde) {
+        return new Tarifa(id, temporadaId, valorPorNoche, vigenteDesde);
+    }
+
     public UUID id() {
         return id;
     }

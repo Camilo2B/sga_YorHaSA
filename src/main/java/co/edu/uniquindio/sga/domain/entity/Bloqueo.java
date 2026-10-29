@@ -39,6 +39,11 @@ public final class Bloqueo {
         return new Bloqueo(UUID.randomUUID(), rango, motivo.trim());
     }
 
+    /** Reconstruye un Bloqueo ya persistido (conserva su id). Solo para rehidratar desde la persistencia. */
+    public static Bloqueo reconstruir(UUID id, Estancia rango, String motivo) {
+        return new Bloqueo(id, rango, motivo);
+    }
+
     /** RN-07: un apartamento con bloqueo vigente sobre una noche no está disponible para esa noche. */
     public boolean seSolapaCon(Estancia estanciaConsultada) {
         Objects.requireNonNull(estanciaConsultada, "La estancia a consultar no puede ser nula");

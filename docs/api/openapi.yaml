@@ -1,7 +1,11 @@
 openapi: 3.1.0
 info:
   title: SGA - Búnker Orbital YoRHa API
-  description: API OpenAPI 3.1 para el Sistema de Gestión de Alojamiento (SGA) del Búnker Orbital YoRHa.
+  description: >-
+    API OpenAPI 3.1 para el Sistema de Gestión de Alojamiento (SGA) del Búnker Orbital YoRHa.
+    Convención de errores: 400 = la forma del mensaje es inválida (la detectan las validaciones del DTO);
+    404 = el recurso no existe; 409 = el mensaje es válido pero viola una regla de negocio (la detecta el dominio).
+    Todos los errores usan el mismo formato ErrorResponse y nunca incluyen trazas técnicas.
   version: 1.0.0
 
 paths:
@@ -18,16 +22,34 @@ paths:
       responses:
         '201':
           description: Reserva creada exitosamente en estado PENDIENTE.
+          headers:
+            Location:
+              description: URI de la reserva creada.
+              schema:
+                type: string
+                example: /api/reservas/RES-2026-00001
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservaResponse'
         '400':
-          description: Error de regla de dominio (capacidad superada, fechas inválidas, etc.).
+          description: La forma del mensaje es inválida (campos faltantes, JSON malformado o valores no permitidos).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento indicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (capacidad superada, fechas inválidas, estancia solapada, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     get:
       summary: Consultar reservas filtradas por estado (ConsultarReservasPorEstadoUseCase)
@@ -72,7 +94,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/reservas/{codigo}/confirmar:
     put:
@@ -87,12 +109,18 @@ paths:
       responses:
         '200':
           description: Reserva confirmada correctamente.
-        '400':
+        '404':
+          description: Reserva no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: Transición de estado inválida o plazo de confirmación vencido.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/reservas/{codigo}/cancelar:
     put:
@@ -107,12 +135,18 @@ paths:
       responses:
         '200':
           description: Reserva cancelada exitosamente y disponibilidad liberada.
-        '400':
+        '404':
+          description: Reserva no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: No se puede cancelar una reserva finalizada o en curso.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/reservas/{codigo}/registrar-llegada:
     put:
@@ -127,12 +161,18 @@ paths:
       responses:
         '200':
           description: Registro realizado. La reserva pasa a EN_CURSO y el apartamento a OCUPADO.
-        '400':
+        '404':
+          description: Reserva no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: El apartamento no está en estado PREPARADO o no es la fecha de entrada.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/reservas/{codigo}/registrar-salida:
     put:
@@ -147,12 +187,18 @@ paths:
       responses:
         '200':
           description: Salida registrada. La reserva pasa a FINALIZADA.
-        '400':
+        '404':
+          description: Reserva no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: El folio tiene saldo pendiente sin autorización del administrador.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/reservas/{codigo}/no-show:
     put:
@@ -167,12 +213,79 @@ paths:
       responses:
         '200':
           description: Reserva marcada como NO_SHOW y retención del 100% del anticipo aplicada.
-        '400':
+        '404':
+          description: Reserva no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: Transición inválida para el estado actual de la reserva.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos:
+    post:
+      summary: Registrar un apartamento (CrearApartamentoUseCase)
+      operationId: crearApartamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearApartamentoRequest'
+      responses:
+        '201':
+          description: Apartamento registrado.
+          headers:
+            Location:
+              description: URI del apartamento creado.
+              schema:
+                type: string
+                example: /api/apartamentos/ATK-001
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartamentoResponse'
+        '400':
+          description: La forma del mensaje es inválida (campos faltantes, capacidad menor a 1, estado operativo inexistente, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (identificación de apartamento repetida, L-04).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}:
+    get:
+      summary: Consultar un apartamento por su identificación (ConsultarApartamentoUseCase)
+      operationId: consultarApartamento
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+      responses:
+        '200':
+          description: Apartamento encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartamentoResponse'
+        '404':
+          description: No existe un apartamento con esa identificación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/apartamentos/{id}/bloquear:
     post:
@@ -195,11 +308,23 @@ paths:
         '201':
           description: Bloqueo registrado exitosamente.
         '400':
-          description: Conflicto con reservas activas en el rango seleccionado (RN-07).
+          description: La forma del mensaje es inválida (fechas faltantes o motivo vacío).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorRespuesta'
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento indicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflicto con reservas activas en el rango seleccionado (RN-07) o con otro bloqueo existente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -275,12 +400,100 @@ components:
           type: number
           example: 500000
 
-    ErrorRespuesta:
+    CrearApartamentoRequest:
+      type: object
+      required:
+        - identificacion
+        - nombre
+        - capacidad
+        - dormitorios
+        - estadoOperativoInicial
+      properties:
+        identificacion:
+          type: string
+          example: ATK-001
+        nombre:
+          type: string
+          example: Attack Suite
+        capacidad:
+          type: integer
+          minimum: 1
+          example: 4
+        dormitorios:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DormitorioRequest'
+        estadoOperativoInicial:
+          type: string
+          enum: [PREPARADO, OCUPADO, PENDIENTE_PREPARACION, EN_PREPARACION, FUERA_DE_SERVICIO]
+
+    DormitorioRequest:
+      type: object
+      required:
+        - descripcion
+        - tipoCama
+      properties:
+        descripcion:
+          type: string
+          example: Dormitorio 1
+        tipoCama:
+          type: string
+          example: Cama doble
+
+    ApartamentoResponse:
       type: object
       properties:
+        identificacion:
+          type: string
+          example: ATK-001
+        nombre:
+          type: string
+          example: Attack Suite
+        capacidad:
+          type: integer
+          example: 4
+        dormitorios:
+          type: array
+          items:
+            $ref: '#/components/schemas/DormitorioResponse'
+        estadoOperativo:
+          type: string
+          enum: [PREPARADO, OCUPADO, PENDIENTE_PREPARACION, EN_PREPARACION, FUERA_DE_SERVICIO]
+        activo:
+          type: boolean
+          example: true
+
+    DormitorioResponse:
+      type: object
+      properties:
+        descripcion:
+          type: string
+          example: Dormitorio 1
+        tipoCama:
+          type: string
+          example: Cama doble
+
+    ErrorResponse:
+      type: object
+      description: Único formato de error de la API. Nunca contiene trazas técnicas.
+      required:
+        - codigoError
+        - mensaje
+      properties:
+        codigoError:
+          type: string
+          description: >-
+            Código estable del tipo de error. VALIDACION y SOLICITUD_MALFORMADA acompañan a un 400;
+            NO_ENCONTRADO, a un 404; REGLA_DOMINIO, a un 409.
+          enum: [VALIDACION, SOLICITUD_MALFORMADA, NO_ENCONTRADO, REGLA_DOMINIO]
+          example: REGLA_DOMINIO
         mensaje:
           type: string
           example: "El número de ocupantes excede la capacidad del apartamento (RN-02)."
-        codigoError:
-          type: string
-          example: "REGLA_DOMINIO_VIOLADA"
+        detalles:
+          type: array
+          description: Una línea por campo inválido (solo en errores de validación). Vacía en los demás casos.
+          items:
+            type: string
+          example: ["capacidad: La capacidad debe ser al menos 1"]
