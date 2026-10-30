@@ -1,9 +1,11 @@
 package co.edu.uniquindio.sga.infrastructure.rest.exception;
 
+import co.edu.uniquindio.sga.application.exception.AlojamientoNoEncontradoException;
 import co.edu.uniquindio.sga.application.exception.ApartamentoNoEncontradoException;
 import co.edu.uniquindio.sga.application.exception.FolioNoEncontradoException;
 import co.edu.uniquindio.sga.application.exception.PoliticaCancelacionNoEncontradaException;
 import co.edu.uniquindio.sga.application.exception.ReservaNoEncontradadException;
+import co.edu.uniquindio.sga.application.exception.TemporadaNoEncontradaException;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 
@@ -37,7 +40,15 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.de("SOLICITUD_MALFORMADA", "El cuerpo de la solicitud no es un JSON válido o tiene valores no permitidos"));
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> manejarParametroConFormatoInvalido(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.de("SOLICITUD_MALFORMADA", "El valor del parámetro '" + ex.getName() + "' no tiene el formato esperado"));
+    }
+
     @ExceptionHandler({
+            AlojamientoNoEncontradoException.class,
+            TemporadaNoEncontradaException.class,
             ApartamentoNoEncontradoException.class,
             ReservaNoEncontradadException.class,
             FolioNoEncontradoException.class,

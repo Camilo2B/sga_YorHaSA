@@ -1,113 +1,82 @@
 package co.edu.uniquindio.sga.domain.entity;
 
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
+import co.edu.uniquindio.sga.domain.valueobject.ParametrosAlojamiento;
 import co.edu.uniquindio.sga.domain.valueobject.TramoAntelacion;
+import co.edu.uniquindio.sga.domain.valueobject.VersionPolitica;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * F-13 - El sistema administra un único alojamiento. Es la raíz del agregado
- * que compone el historial de Temporada y de PoliticaCancelacion, y guarda
- * los parámetros de configuración de la sección 6 / Anexo A.4 (nunca
- * quemados en código: umbral de edad, horas, tiempos, anticipo).
+ * F-13: el sistema administra un único alojamiento. Raíz del agregado que compone el historial de Temporada y de
+ * PoliticaCancelacion, y "tiene" los parámetros de la Ficha (ParametrosAlojamiento), que le llegan ya armados:
+ * el dominio no sabe que hoy vienen de application.properties.
  * <p>
- * Apartamento es una raíz de agregado DISTINTA (ver clase Apartamento):
- * Alojamiento la referencia solo por su identificador, nunca por objeto.
+ * Apartamento es una raíz de agregado DISTINTA: Alojamiento no la contiene ni la referencia por objeto.
  */
 public final class Alojamiento {
 
     private final UUID id;
     private final String nombre;
     private final String ciudad;
-    private final int umbralEdadFacturable;
-    private final LocalTime horaEntrada;
-    private final LocalTime horaSalida;
-    private final int tiempoPreparacionHoras;
-    private final int plazoConfirmacionHoras;
-    private final LocalTime horaLimiteNoShow;
-    private final boolean exigeAnticipo;
-    private final BigDecimal porcentajeAnticipo; // fracción (0.5 = 50%), no un Dinero: es proporcional al valor de cada estancia
-
+    private final ParametrosAlojamiento parametros;
     private final List<Temporada> temporadas = new ArrayList<>();
     private final List<PoliticaCancelacion> historialPoliticas = new ArrayList<>();
 
-    private Alojamiento(UUID id, String nombre, String ciudad, int umbralEdadFacturable,
-                        LocalTime horaEntrada, LocalTime horaSalida, int tiempoPreparacionHoras,
-                        int plazoConfirmacionHoras, LocalTime horaLimiteNoShow,
-                        boolean exigeAnticipo, BigDecimal porcentajeAnticipo,
-                        Temporada temporadaBase, PoliticaCancelacion politicaInicial) {
+    private Alojamiento(UUID id, String nombre, String ciudad, ParametrosAlojamiento parametros) {
         this.id = id;
         this.nombre = nombre;
         this.ciudad = ciudad;
-        this.umbralEdadFacturable = umbralEdadFacturable;
-        this.horaEntrada = horaEntrada;
-        this.horaSalida = horaSalida;
-        this.tiempoPreparacionHoras = tiempoPreparacionHoras;
-        this.plazoConfirmacionHoras = plazoConfirmacionHoras;
-        this.horaLimiteNoShow = horaLimiteNoShow;
-        this.exigeAnticipo = exigeAnticipo;
-        this.porcentajeAnticipo = porcentajeAnticipo;
-        this.temporadas.add(temporadaBase);
-        this.historialPoliticas.add(politicaInicial);
+        this.parametros = parametros;
     }
 
     /**
-     * F-07 y 7.4 exigen que exista, desde el primer momento, una política de
-     * cancelación vigente y una temporada base — por eso son parámetros
-     * obligatorios de creación, no algo que se agregue después "si acaso".
+     * F-07 y 7.4 exigen que exista, desde el primer momento, una política de cancelación vigente y una temporada
+     * base: por eso son obligatorias al crear, no algo que se agregue después "si acaso".
      */
-    public static Alojamiento crear(String nombre, String ciudad, int umbralEdadFacturable,
-                                    LocalTime horaEntrada, LocalTime horaSalida, int tiempoPreparacionHoras,
-                                    int plazoConfirmacionHoras, LocalTime horaLimiteNoShow,
-                                    boolean exigeAnticipo, BigDecimal porcentajeAnticipo,
+    public static Alojamiento crear(String nombre, String ciudad, ParametrosAlojamiento parametros,
                                     Temporada temporadaBase, List<TramoAntelacion> tramosPoliticaInicial,
                                     LocalDate vigenteDesde) {
+        validarIdentidad(nombre, ciudad);
+        Objects.requireNonNull(parametros, "Los parámetros del alojamiento no pueden ser nulos");
+        Objects.requireNonNull(temporadaBase, "El alojamiento debe crearse con una temporada base");
+        if (!temporadaBase.esBase()) {
+            throw new ReglaDominioException("La temporada inicial del alojamiento debe ser la temporada base");
+        }
+        Alojamiento alojamiento = new Alojamiento(UUID.randomUUID(), nombre.trim(), ciudad.trim(), parametros);
+        alojamiento.temporadas.add(temporadaBase);
+        alojamiento.historialPoliticas.add(PoliticaCancelacion.crear(1, vigenteDesde, tramosPoliticaInicial));
+        return alojamiento;
+    }
+
+    /**
+     * Reconstruye el Alojamiento ya persistido. Solo para rehidratar desde la persistencia: el estado guardado ya
+     * pasó por crear(...) y por los métodos de negocio.
+     */
+    public static Alojamiento reconstruir(UUID id, String nombre, String ciudad, ParametrosAlojamiento parametros,
+                                          List<Temporada> temporadas, List<PoliticaCancelacion> politicas) {
+        Alojamiento alojamiento = new Alojamiento(id, nombre, ciudad, parametros);
+        alojamiento.temporadas.addAll(temporadas);
+        alojamiento.historialPoliticas.addAll(politicas);
+        return alojamiento;
+    }
+
+    private static void validarIdentidad(String nombre, String ciudad) {
         if (nombre == null || nombre.isBlank()) {
             throw new ReglaDominioException("El nombre del alojamiento no puede estar vacío");
         }
         if (ciudad == null || ciudad.isBlank()) {
             throw new ReglaDominioException("La ciudad del alojamiento no puede estar vacía");
         }
-        if (umbralEdadFacturable < 0) {
-            throw new ReglaDominioException("El umbral de edad facturable no puede ser negativo");
-        }
-        Objects.requireNonNull(horaEntrada, "La hora de entrada no puede ser nula");
-        Objects.requireNonNull(horaSalida, "La hora de salida no puede ser nula");
-        if (tiempoPreparacionHoras < 0) {
-            throw new ReglaDominioException("El tiempo de preparación no puede ser negativo");
-        }
-        if (plazoConfirmacionHoras < 0) {
-            throw new ReglaDominioException("El plazo de confirmación no puede ser negativo");
-        }
-        Objects.requireNonNull(horaLimiteNoShow, "La hora límite de no-show no puede ser nula");
-        if (exigeAnticipo) {
-            Objects.requireNonNull(porcentajeAnticipo, "Si se exige anticipo, el porcentaje no puede ser nulo");
-            if (porcentajeAnticipo.compareTo(BigDecimal.ZERO) <= 0 || porcentajeAnticipo.compareTo(BigDecimal.ONE) > 0) {
-                throw new ReglaDominioException("El porcentaje de anticipo debe estar entre 0 (exclusivo) y 1");
-            }
-        }
-        Objects.requireNonNull(temporadaBase, "El alojamiento debe crearse con una temporada base");
-        if (!temporadaBase.esBase()) {
-            throw new ReglaDominioException("La temporada inicial del alojamiento debe ser la temporada base");
-        }
-        PoliticaCancelacion politicaInicial = PoliticaCancelacion.crear(1, vigenteDesde, tramosPoliticaInicial);
-
-        return new Alojamiento(UUID.randomUUID(), nombre, ciudad, umbralEdadFacturable, horaEntrada, horaSalida,
-                tiempoPreparacionHoras, plazoConfirmacionHoras, horaLimiteNoShow, exigeAnticipo,
-                exigeAnticipo ? porcentajeAnticipo : BigDecimal.ZERO, temporadaBase, politicaInicial);
     }
 
-    /**
-     * 7.4: las temporadas no pueden solaparse entre sí; solo puede existir
-     * una temporada base.
-     */
+    /** 7.4: las temporadas no pueden solaparse entre sí; solo puede existir una temporada base. */
     public void agregarTemporada(Temporada nueva) {
         Objects.requireNonNull(nueva, "La temporada no puede ser nula");
         if (nueva.esBase()) {
@@ -121,9 +90,8 @@ public final class Alojamiento {
     }
 
     /**
-     * 7.4: ninguna fecha reservable queda sin temporada. Se busca primero
-     * entre las temporadas específicas; si ninguna cubre la fecha, se usa la
-     * base como respaldo.
+     * 7.4: ninguna fecha reservable queda sin temporada. Se busca primero entre las temporadas específicas; si
+     * ninguna cubre la fecha, se usa la base como respaldo.
      */
     public Temporada temporadaVigente(LocalDate fecha) {
         Objects.requireNonNull(fecha, "La fecha no puede ser nula");
@@ -137,26 +105,39 @@ public final class Alojamiento {
                         .orElseThrow(() -> new ReglaDominioException("El alojamiento no tiene temporada base configurada")));
     }
 
+    public Optional<Temporada> temporada(UUID idTemporada) {
+        return temporadas.stream().filter(t -> t.id().equals(idTemporada)).findFirst();
+    }
+
     /**
-     * 7.4 / F-07: al actualizarla se conserva la versión anterior; nunca se
-     * edita una PoliticaCancelacion existente, siempre se agrega una nueva.
+     * 7.4 / F-07: al actualizarla se conserva la versión anterior; nunca se edita una PoliticaCancelacion existente,
+     * siempre se agrega una nueva. La nueva debe regir DESPUÉS de la más reciente: con la misma fecha habría dos
+     * versiones "vigentes" a la vez y no se sabría cuál congelar en una reserva (RN-13).
      */
     public PoliticaCancelacion definirNuevaPolitica(List<TramoAntelacion> tramos, LocalDate vigenteDesde) {
-        int siguienteVersion = historialPoliticas.size() + 1;
-        PoliticaCancelacion nueva = PoliticaCancelacion.crear(siguienteVersion, vigenteDesde, tramos);
+        Objects.requireNonNull(vigenteDesde, "La fecha de vigencia no puede ser nula");
+        boolean noEsPosterior = historialPoliticas.stream().anyMatch(p -> !vigenteDesde.isAfter(p.vigenteDesde()));
+        if (noEsPosterior) {
+            throw new ReglaDominioException("La nueva política debe regir después de la versión más reciente");
+        }
+        PoliticaCancelacion nueva = PoliticaCancelacion.crear(historialPoliticas.size() + 1, vigenteDesde, tramos);
         historialPoliticas.add(nueva);
         return nueva;
     }
 
-    /**
-     * 3.5: la reserva congela la versión vigente al momento de crearse.
-     */
+    /** 3.5: la reserva congela la versión vigente al momento de crearse. */
     public PoliticaCancelacion politicaVigente(LocalDate fecha) {
         Objects.requireNonNull(fecha, "La fecha no puede ser nula");
         return historialPoliticas.stream()
                 .filter(p -> !p.vigenteDesde().isAfter(fecha))
                 .max(Comparator.comparing(PoliticaCancelacion::vigenteDesde))
                 .orElseThrow(() -> new ReglaDominioException("No hay una política de cancelación vigente para la fecha " + fecha));
+    }
+
+    /** RN-13: la retención se calcula con la versión congelada en la reserva, no con la vigente al momento del hecho. */
+    public Optional<PoliticaCancelacion> politicaDeVersion(VersionPolitica version) {
+        Objects.requireNonNull(version, "La versión no puede ser nula");
+        return historialPoliticas.stream().filter(p -> p.numeroVersion().equals(version)).findFirst();
     }
 
     public UUID id() {
@@ -171,36 +152,8 @@ public final class Alojamiento {
         return ciudad;
     }
 
-    public int umbralEdadFacturable() {
-        return umbralEdadFacturable;
-    }
-
-    public LocalTime horaEntrada() {
-        return horaEntrada;
-    }
-
-    public LocalTime horaSalida() {
-        return horaSalida;
-    }
-
-    public int tiempoPreparacionHoras() {
-        return tiempoPreparacionHoras;
-    }
-
-    public int plazoConfirmacionHoras() {
-        return plazoConfirmacionHoras;
-    }
-
-    public LocalTime horaLimiteNoShow() {
-        return horaLimiteNoShow;
-    }
-
-    public boolean exigeAnticipo() {
-        return exigeAnticipo;
-    }
-
-    public BigDecimal porcentajeAnticipo() {
-        return porcentajeAnticipo;
+    public ParametrosAlojamiento parametros() {
+        return parametros;
     }
 
     public List<Temporada> temporadas() {

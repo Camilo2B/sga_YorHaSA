@@ -287,6 +287,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/alojamiento:
+    get:
+      summary: Consultar el alojamiento con sus parámetros, temporadas y política de cancelación vigente (ConsultarAlojamientoUseCase)
+      operationId: consultarAlojamiento
+      responses:
+        '200':
+          description: Datos del alojamiento. Los parámetros salen de la configuración del sistema (application.properties).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlojamientoResponse'
+        '404':
+          description: El alojamiento todavía no ha sido configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alojamiento/temporadas:
+    post:
+      summary: Registrar una temporada (RegistrarTemporadaUseCase)
+      operationId: registrarTemporada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarTemporadaRequest'
+      responses:
+        '201':
+          description: Temporada registrada.
+          headers:
+            Location:
+              description: URI de la temporada creada.
+              schema:
+                type: string
+                example: /api/alojamiento/temporadas/3f2b8c1e-5a47-4d9e-9c1a-7b6d2e8f0a11
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporadaResponse'
+        '400':
+          description: La forma del mensaje es inválida (nombre vacío, fechas faltantes o con formato incorrecto).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El alojamiento todavía no ha sido configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (la fecha de fin no es posterior a la de inicio, o la temporada se solapa con otra existente).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alojamiento/temporadas/{id}:
+    get:
+      summary: Consultar una temporada por su identificador (ConsultarTemporadaUseCase)
+      operationId: consultarTemporada
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Temporada encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporadaResponse'
+        '400':
+          description: El identificador no tiene formato UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe una temporada con ese identificador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/apartamentos/{id}/bloquear:
     post:
       summary: Bloquear un apartamento para mantenimiento o uso administrativo (BloquearApartamentoUseCase)
@@ -473,6 +564,125 @@ components:
         tipoCama:
           type: string
           example: Cama doble
+
+    RegistrarTemporadaRequest:
+      type: object
+      required:
+        - nombre
+        - fechaInicio
+        - fechaFin
+      properties:
+        nombre:
+          type: string
+          example: Despliegue de Misión
+        fechaInicio:
+          type: string
+          format: date
+          example: "2026-12-15"
+        fechaFin:
+          type: string
+          format: date
+          description: Exclusiva, igual que en las estancias [inicio, fin).
+          example: "2027-01-16"
+
+    TemporadaResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+          example: Despliegue de Misión
+        fechaInicio:
+          type: [string, 'null']
+          format: date
+          description: Nula en la temporada base, que cubre toda fecha no cubierta por otra temporada.
+        fechaFin:
+          type: [string, 'null']
+          format: date
+        esBase:
+          type: boolean
+          example: false
+
+    ParametrosResponse:
+      type: object
+      description: Parámetros de la Ficha (sección 6). Salen de application.properties, no de la base de datos.
+      properties:
+        umbralEdadFacturable:
+          type: integer
+          example: 12
+        horaEntrada:
+          type: string
+          format: time
+          example: "15:00:00"
+        horaSalida:
+          type: string
+          format: time
+          example: "11:00:00"
+        tiempoPreparacionHoras:
+          type: integer
+          example: 3
+        plazoConfirmacionHoras:
+          type: integer
+          example: 24
+        horaLimiteNoShow:
+          type: string
+          format: time
+          example: "21:00:00"
+        exigeAnticipo:
+          type: boolean
+          example: true
+        porcentajeAnticipo:
+          type: number
+          description: Fracción del valor de la estancia (0.50 = 50%).
+          example: 0.50
+
+    TramoResponse:
+      type: object
+      properties:
+        antelacionMinimaHoras:
+          type: integer
+          example: 168
+        porcentajeRetencion:
+          type: number
+          example: 0.00
+        porcentajeDevolucion:
+          type: number
+          description: Siempre es el complemento de la retención.
+          example: 1.00
+
+    PoliticaCancelacionResponse:
+      type: object
+      properties:
+        version:
+          type: integer
+          example: 1
+        vigenteDesde:
+          type: string
+          format: date
+        tramos:
+          type: array
+          items:
+            $ref: '#/components/schemas/TramoResponse'
+
+    AlojamientoResponse:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Búnker Orbital YoRHa - Suites & Apartamentos Temáticos
+        ciudad:
+          type: string
+          example: El Espacio
+        parametros:
+          $ref: '#/components/schemas/ParametrosResponse'
+        temporadas:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemporadaResponse'
+        politicaVigente:
+          $ref: '#/components/schemas/PoliticaCancelacionResponse'
 
     ErrorResponse:
       type: object

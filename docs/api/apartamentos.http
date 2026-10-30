@@ -57,3 +57,51 @@ Content-Type: application/json
 
 ### 6) Apartamento que no existe -> 404 Not Found
 GET http://localhost:8080/api/apartamentos/NO-EXISTE
+
+### ---------------- Alojamiento (se carga solo al arrancar) ----------------
+
+### 7) Consultar el alojamiento -> 200 OK (parámetros de application.properties, temporada base y política v1)
+GET http://localhost:8080/api/alojamiento
+
+### 8) Registrar una temporada -> 201 Created + Location
+POST http://localhost:8080/api/alojamiento/temporadas
+Content-Type: application/json
+
+{
+  "nombre": "Despliegue de Misión",
+  "fechaInicio": "2026-12-15",
+  "fechaFin": "2027-01-16"
+}
+
+### 9) Una temporada que se solapa con la anterior -> 409 Conflict
+POST http://localhost:8080/api/alojamiento/temporadas
+Content-Type: application/json
+
+{
+  "nombre": "Se solapa",
+  "fechaInicio": "2027-01-10",
+  "fechaFin": "2027-01-20"
+}
+
+### 10) Fechas invertidas -> 409 Conflict (regla de dominio: la salida debe ser posterior a la entrada)
+POST http://localhost:8080/api/alojamiento/temporadas
+Content-Type: application/json
+
+{
+  "nombre": "Invertida",
+  "fechaInicio": "2027-03-10",
+  "fechaFin": "2027-03-01"
+}
+
+### 11) Nombre vacío -> 400 Bad Request
+POST http://localhost:8080/api/alojamiento/temporadas
+Content-Type: application/json
+
+{
+  "nombre": "",
+  "fechaInicio": "2027-03-01",
+  "fechaFin": "2027-03-10"
+}
+
+### 12) Identificador que no es UUID -> 400 Bad Request
+GET http://localhost:8080/api/alojamiento/temporadas/no-es-un-uuid

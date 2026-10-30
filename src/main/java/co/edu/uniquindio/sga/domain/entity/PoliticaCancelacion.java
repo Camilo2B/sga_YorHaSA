@@ -50,6 +50,11 @@ public final class PoliticaCancelacion {
         return new PoliticaCancelacion(new VersionPolitica(numeroVersion, vigenteDesde), vigenteDesde, List.copyOf(tramos));
     }
 
+    /** Reconstruye una política ya persistida. Solo para rehidratar desde la persistencia. */
+    public static PoliticaCancelacion reconstruir(VersionPolitica version, List<TramoAntelacion> tramos) {
+        return new PoliticaCancelacion(version, version.vigenteDesde(), List.copyOf(tramos));
+    }
+
     /**
      * RN-13: retención aplicable según la antelación real de la cancelación.
      * Se elige el tramo con la mayor antelación mínima que la antelación

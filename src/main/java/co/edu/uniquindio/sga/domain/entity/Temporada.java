@@ -49,6 +49,11 @@ public final class Temporada {
         return new Temporada(UUID.randomUUID(), nombre, null, null, true);
     }
 
+    /** Reconstruye una Temporada ya persistida (conserva su id). Solo para rehidratar desde la persistencia. */
+    public static Temporada reconstruir(UUID id, String nombre, LocalDate fechaInicio, LocalDate fechaFin, boolean esBase) {
+        return new Temporada(id, nombre, fechaInicio, fechaFin, esBase);
+    }
+
     private static void validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ReglaDominioException("El nombre de la temporada no puede estar vacío");
