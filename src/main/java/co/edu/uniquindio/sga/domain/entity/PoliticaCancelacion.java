@@ -47,6 +47,15 @@ public final class PoliticaCancelacion {
         if (tramos.size() < MINIMO_TRAMOS) {
             throw new ReglaDominioException("Una política de cancelación debe tener al menos " + MINIMO_TRAMOS + " tramos de antelación");
         }
+        // Sin repetir antelaciones: con dos tramos iguales no se sabría cuál retención aplicar.
+        long antelacionesDistintas = tramos.stream().map(TramoAntelacion::antelacionMinimaHoras).distinct().count();
+        if (antelacionesDistintas != tramos.size()) {
+            throw new ReglaDominioException("Los tramos de la política no pueden repetir la misma antelación mínima");
+        }
+        // RN-13: toda cancelación debe caer en algún tramo; el de 0 horas es el que cubre las más cercanas a la entrada.
+        if (tramos.stream().noneMatch(t -> t.antelacionMinimaHoras() == 0)) {
+            throw new ReglaDominioException("La política debe tener un tramo de 0 horas de antelación para cubrir las cancelaciones más cercanas a la entrada");
+        }
         return new PoliticaCancelacion(new VersionPolitica(numeroVersion, vigenteDesde), vigenteDesde, List.copyOf(tramos));
     }
 

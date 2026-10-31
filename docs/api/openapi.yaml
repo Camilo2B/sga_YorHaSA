@@ -417,6 +417,233 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/apartamentos/{identificacion}/tarifas:
+    post:
+      summary: Definir la tarifa de un apartamento para una temporada (DefinirTarifaUseCase)
+      description: >-
+        Agrega una nueva versión de la tarifa; las anteriores se conservan como histórico (7.4).
+        La tarifa nueva debe regir después de la más reciente de esa misma temporada.
+      operationId: definirTarifa
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefinirTarifaRequest'
+      responses:
+        '201':
+          description: Tarifa definida.
+          headers:
+            Location:
+              description: URI del histórico de tarifas del apartamento.
+              schema:
+                type: string
+                example: /api/apartamentos/ATK-001/tarifas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TarifaResponse'
+        '400':
+          description: La forma del mensaje es inválida (temporada, valor o fecha faltantes, valor menor o igual a cero, identificador que no es UUID).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento o la temporada indicada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (la tarifa no rige después de la más reciente de esa temporada).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Consultar el histórico de tarifas de un apartamento (ListarTarifasApartamentoUseCase)
+      description: Devuelve las tarifas de la más reciente a la más antigua. Con temporadaId se limita a esa temporada.
+      operationId: listarTarifasApartamento
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+        - name: temporadaId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Histórico de tarifas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TarifaResponse'
+        '400':
+          description: El temporadaId no tiene formato UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alojamiento/politica-cancelacion:
+    post:
+      summary: Definir una nueva versión de la política de cancelación (DefinirPoliticaCancelacionUseCase)
+      description: >-
+        Agrega una versión nueva; las anteriores se conservan (F-07, RN-13). Mínimo dos tramos, uno de ellos de 0 horas,
+        sin repetir la antelación mínima, y debe regir después de la versión más reciente.
+      operationId: definirPoliticaCancelacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefinirPoliticaCancelacionRequest'
+      responses:
+        '201':
+          description: Política definida.
+          headers:
+            Location:
+              description: URI de la versión creada.
+              schema:
+                type: string
+                example: /api/alojamiento/politica-cancelacion/2
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoliticaCancelacionResponse'
+        '400':
+          description: La forma del mensaje es inválida (sin tramos, retención fuera de 0 a 1, antelación negativa, fecha faltante).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El alojamiento todavía no ha sido configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (menos de dos tramos, sin tramo de 0 horas, antelaciones repetidas o vigencia no posterior a la versión más reciente).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Consultar todas las versiones de la política de cancelación (ListarPoliticasCancelacionUseCase)
+      description: De la primera versión a la más reciente.
+      operationId: listarPoliticasCancelacion
+      responses:
+        '200':
+          description: Historial de versiones.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PoliticaCancelacionResponse'
+        '404':
+          description: El alojamiento todavía no ha sido configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alojamiento/politica-cancelacion/{version}:
+    get:
+      summary: Consultar una versión de la política de cancelación (ConsultarPoliticaCancelacionUseCase)
+      operationId: consultarPoliticaCancelacion
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Versión encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoliticaCancelacionResponse'
+        '400':
+          description: La versión no es un número entero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe esa versión de la política.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cotizaciones:
+    post:
+      summary: Cotizar una estancia (CotizarEstanciaUseCase)
+      description: >-
+        Calcula el valor de una estancia noche por noche (RN-05) con la tarifa de la temporada de cada noche, solo los
+        ocupantes facturables a la fecha de entrada (RN-06) y el descuento por estancia prolongada (RN-Propia-01).
+        No crea nada: es una consulta, por eso responde 200.
+      operationId: cotizarEstancia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CotizarEstanciaRequest'
+      responses:
+        '200':
+          description: Cotización con su desglose por noche.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CotizacionResponse'
+        '400':
+          description: La forma del mensaje es inválida (apartamento, fechas u ocupantes faltantes, fecha de nacimiento futura).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento indicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (salida no posterior a la entrada, ningún ocupante facturable, o el apartamento no tiene tarifa para la temporada de alguna noche).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     CrearReservaRequest:
@@ -574,16 +801,16 @@ components:
       properties:
         nombre:
           type: string
-          example: Despliegue de Misión
+          example: Alta (mitad de año)
         fechaInicio:
           type: string
           format: date
-          example: "2026-12-15"
+          example: "2027-06-01"
         fechaFin:
           type: string
           format: date
           description: Exclusiva, igual que en las estancias [inicio, fin).
-          example: "2027-01-16"
+          example: "2027-08-01"
 
     TemporadaResponse:
       type: object
@@ -683,6 +910,170 @@ components:
             $ref: '#/components/schemas/TemporadaResponse'
         politicaVigente:
           $ref: '#/components/schemas/PoliticaCancelacionResponse'
+
+    DefinirTarifaRequest:
+      type: object
+      required:
+        - temporadaId
+        - valorPorNoche
+        - vigenteDesde
+      properties:
+        temporadaId:
+          type: string
+          format: uuid
+        valorPorNoche:
+          type: number
+          description: Valor por ocupante facturable y por noche, en COP. Mayor a cero.
+          example: 90000
+        vigenteDesde:
+          type: string
+          format: date
+          example: "2027-01-01"
+
+    TarifaResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        temporadaId:
+          type: string
+          format: uuid
+        valorPorNoche:
+          type: number
+          example: 80000
+        vigenteDesde:
+          type: string
+          format: date
+
+    TramoRequest:
+      type: object
+      required:
+        - antelacionMinimaHoras
+        - porcentajeRetencion
+      properties:
+        antelacionMinimaHoras:
+          type: integer
+          minimum: 0
+          example: 168
+        porcentajeRetencion:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fracción del anticipo que se retiene (0.50 = 50%). La devolución es el complemento.
+          example: 0.00
+
+    DefinirPoliticaCancelacionRequest:
+      type: object
+      required:
+        - tramos
+        - vigenteDesde
+      properties:
+        tramos:
+          type: array
+          items:
+            $ref: '#/components/schemas/TramoRequest'
+        vigenteDesde:
+          type: string
+          format: date
+          example: "2027-01-01"
+
+    OcupanteRequest:
+      type: object
+      required:
+        - documento
+        - nombre
+        - fechaNacimiento
+      properties:
+        documento:
+          type: string
+          minLength: 7
+          maxLength: 11
+          example: "1094123456"
+        nombre:
+          type: string
+          example: Camilo Ruiz
+        fechaNacimiento:
+          type: string
+          format: date
+          description: La edad se calcula a la fecha de entrada; nunca se envía.
+          example: "1990-05-01"
+
+    CotizarEstanciaRequest:
+      type: object
+      required:
+        - identificacionApartamento
+        - fechaEntrada
+        - fechaSalida
+        - ocupantes
+      properties:
+        identificacionApartamento:
+          type: string
+          example: ATK-001
+        fechaEntrada:
+          type: string
+          format: date
+          example: "2026-12-13"
+        fechaSalida:
+          type: string
+          format: date
+          description: Exclusiva; la noche de la salida no se cobra.
+          example: "2026-12-18"
+        ocupantes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OcupanteRequest'
+
+    DetalleNocheResponse:
+      type: object
+      description: Valores en pesos colombianos sin decimales.
+      properties:
+        fecha:
+          type: string
+          format: date
+        temporada:
+          type: string
+          example: Media (Sincronización)
+        tarifaAplicada:
+          type: integer
+          format: int64
+          description: Tarifa de la noche por ocupante facturable, ya con el descuento si aplica.
+          example: 90000
+        ocupantesFacturables:
+          type: integer
+          example: 2
+        subtotal:
+          type: integer
+          format: int64
+          example: 180000
+
+    CotizacionResponse:
+      type: object
+      properties:
+        identificacionApartamento:
+          type: string
+        fechaEntrada:
+          type: string
+          format: date
+        fechaSalida:
+          type: string
+          format: date
+        noches:
+          type: integer
+        ocupantesFacturables:
+          type: integer
+        desglose:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetalleNocheResponse'
+        valorTotal:
+          type: integer
+          format: int64
+          example: 1035000
+        moneda:
+          type: string
+          example: COP
 
     ErrorResponse:
       type: object

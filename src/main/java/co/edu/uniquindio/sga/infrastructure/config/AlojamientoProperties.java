@@ -25,5 +25,7 @@ public record AlojamientoProperties(
         @NotNull @Min(0) Integer plazoConfirmacionHoras,
         @NotBlank @Pattern(regexp = "^([01]\\d|2[0-3]):[0-5]\\d$", message = "debe tener formato HH:mm") String horaLimiteNoShow,
         @NotNull Boolean exigeAnticipo,
-        @NotNull BigDecimal porcentajeAnticipo) {
+        @NotNull BigDecimal porcentajeAnticipo,
+        @NotNull @Min(1) Integer nochesDescuentoEstanciaProlongada,
+        @NotNull BigDecimal porcentajeDescuentoEstanciaProlongada) {
 }

@@ -1,6 +1,7 @@
 package co.edu.uniquindio.sga.domain.entity;
 
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
+import co.edu.uniquindio.sga.domain.valueobject.Dinero;
 import co.edu.uniquindio.sga.domain.valueobject.Dormitorio;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 import co.edu.uniquindio.sga.domain.valueobject.EstadoOperativo;
@@ -8,6 +9,7 @@ import co.edu.uniquindio.sga.domain.valueobject.TipoApartamento;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -165,6 +167,51 @@ public final class Apartamento {
     public void agregarTarifa(Tarifa nueva) {
         Objects.requireNonNull(nueva, "La tarifa no puede ser nula");
         tarifas.add(nueva);
+    }
+
+    /**
+     * 7.4: define una nueva tarifa para una temporada. Nunca se edita una tarifa existente: se agrega una versión
+     * nueva y las anteriores quedan como histórico. La nueva debe regir DESPUÉS de la más reciente de la misma
+     * temporada; con la misma fecha habría dos tarifas "vigentes" a la vez y no se sabría cuál cobrar.
+     * Que la temporada exista lo verifica quien invoque este método (Temporada vive en otro agregado).
+     */
+    public Tarifa definirTarifa(java.util.UUID temporadaId, Dinero valorPorNoche, LocalDate vigenteDesde) {
+        Objects.requireNonNull(temporadaId, "El identificador de temporada no puede ser nulo");
+        Objects.requireNonNull(vigenteDesde, "La fecha de vigencia no puede ser nula");
+        boolean noEsPosterior = tarifas.stream()
+                .filter(t -> t.temporadaId().equals(temporadaId))
+                .anyMatch(t -> !vigenteDesde.isAfter(t.vigenteDesde()));
+        if (noEsPosterior) {
+            throw new ReglaDominioException("La nueva tarifa del apartamento " + identificacion
+                    + " debe regir después de la tarifa más reciente de esa temporada");
+        }
+        Tarifa nueva = Tarifa.crear(temporadaId, valorPorNoche, vigenteDesde);
+        tarifas.add(nueva);
+        return nueva;
+    }
+
+    /** 7.4: histórico de tarifas de una temporada, de la más reciente a la más antigua. */
+    public List<Tarifa> historialTarifas(java.util.UUID temporadaId) {
+        Objects.requireNonNull(temporadaId, "El identificador de temporada no puede ser nulo");
+        return tarifas.stream()
+                .filter(t -> t.temporadaId().equals(temporadaId))
+                .sorted(Comparator.comparing(Tarifa::vigenteDesde).reversed())
+                .toList();
+    }
+
+    /** 7.4: histórico completo de tarifas, de la más reciente a la más antigua. */
+    public List<Tarifa> historialTarifas() {
+        return tarifas.stream()
+                .sorted(Comparator.comparing(Tarifa::vigenteDesde).reversed())
+                .toList();
+    }
+
+    /** 7.4: temporadas (de las indicadas) para las que este apartamento todavía no tiene ninguna tarifa. */
+    public List<java.util.UUID> temporadasSinTarifa(Collection<java.util.UUID> temporadaIds) {
+        Objects.requireNonNull(temporadaIds, "Las temporadas no pueden ser nulas");
+        return temporadaIds.stream()
+                .filter(id -> tarifas.stream().noneMatch(t -> t.temporadaId().equals(id)))
+                .toList();
     }
 
     public Tarifa tarifaVigente(java.util.UUID temporadaId, LocalDate fecha) {

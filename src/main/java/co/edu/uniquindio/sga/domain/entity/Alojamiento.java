@@ -134,6 +134,11 @@ public final class Alojamiento {
                 .orElseThrow(() -> new ReglaDominioException("No hay una política de cancelación vigente para la fecha " + fecha));
     }
 
+    /** 7.4: consulta una versión de la política por su número (1, 2, 3...). */
+    public Optional<PoliticaCancelacion> politicaPorNumero(int numero) {
+        return historialPoliticas.stream().filter(p -> p.numeroVersion().numero() == numero).findFirst();
+    }
+
     /** RN-13: la retención se calcula con la versión congelada en la reserva, no con la vigente al momento del hecho. */
     public Optional<PoliticaCancelacion> politicaDeVersion(VersionPolitica version) {
         Objects.requireNonNull(version, "La versión no puede ser nula");

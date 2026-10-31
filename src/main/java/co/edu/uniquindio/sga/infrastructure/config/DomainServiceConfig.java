@@ -1,7 +1,9 @@
 package co.edu.uniquindio.sga.infrastructure.config;
 
 import co.edu.uniquindio.sga.domain.repository.ApartamentoRepository;
+import co.edu.uniquindio.sga.domain.service.CotizadorEstanciaService;
 import co.edu.uniquindio.sga.domain.service.RegistroApartamentoService;
+import co.edu.uniquindio.sga.domain.valueobject.DescuentoEstanciaProlongada;
 import co.edu.uniquindio.sga.domain.valueobject.HoraLimiteNoShow;
 import co.edu.uniquindio.sga.domain.valueobject.HorarioAlojamiento;
 import co.edu.uniquindio.sga.domain.valueobject.ParametrosAlojamiento;
@@ -47,5 +49,13 @@ public class DomainServiceConfig {
     @Bean
     public RegistroApartamentoService registroApartamentoService(ApartamentoRepository apartamentoRepository) {
         return new RegistroApartamentoService(apartamentoRepository);
+    }
+
+    /** RN-Propia-01: el descuento por estancia prolongada sale de la configuración, no del código. */
+    @Bean
+    public CotizadorEstanciaService cotizadorEstanciaService(AlojamientoProperties propiedades) {
+        return new CotizadorEstanciaService(new DescuentoEstanciaProlongada(
+                propiedades.nochesDescuentoEstanciaProlongada(),
+                propiedades.porcentajeDescuentoEstanciaProlongada()));
     }
 }

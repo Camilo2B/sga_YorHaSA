@@ -1,6 +1,7 @@
 package co.edu.uniquindio.sga.infrastructure.rest.mapper;
 
 import co.edu.uniquindio.sga.application.dto.request.RegistrarTemporadaRequest;
+import co.edu.uniquindio.sga.application.dto.request.TramoRequest;
 import co.edu.uniquindio.sga.application.dto.response.AlojamientoResponse;
 import co.edu.uniquindio.sga.application.dto.response.ParametrosResponse;
 import co.edu.uniquindio.sga.application.dto.response.PoliticaCancelacionResponse;
@@ -64,4 +65,13 @@ public interface AlojamientoMapper {
     TramoResponse toTramoResponse(TramoAntelacion tramo);
 
     List<TramoResponse> toTramoResponses(List<TramoAntelacion> tramos);
+
+    /** Pasa por el constructor de TramoAntelacion: el request no puede saltarse las validaciones del dominio. */
+    default TramoAntelacion toDomain(TramoRequest request) {
+        return new TramoAntelacion(request.antelacionMinimaHoras(), request.porcentajeRetencion());
+    }
+
+    List<TramoAntelacion> toTramos(List<TramoRequest> requests);
+
+    List<PoliticaCancelacionResponse> toPoliticaResponses(List<PoliticaCancelacion> politicas);
 }

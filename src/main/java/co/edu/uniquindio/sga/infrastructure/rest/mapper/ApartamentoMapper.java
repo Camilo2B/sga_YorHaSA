@@ -4,7 +4,9 @@ import co.edu.uniquindio.sga.application.dto.request.CrearApartamentoRequest;
 import co.edu.uniquindio.sga.application.dto.request.DormitorioRequest;
 import co.edu.uniquindio.sga.application.dto.response.ApartamentoResponse;
 import co.edu.uniquindio.sga.application.dto.response.DormitorioResponse;
+import co.edu.uniquindio.sga.application.dto.response.TarifaResponse;
 import co.edu.uniquindio.sga.domain.entity.Apartamento;
+import co.edu.uniquindio.sga.domain.entity.Tarifa;
 import co.edu.uniquindio.sga.domain.valueobject.Dormitorio;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -43,4 +45,10 @@ public interface ApartamentoMapper {
     List<DormitorioResponse> toDormitorioResponses(List<Dormitorio> dormitorios);
 
     DormitorioResponse toDormitorioResponse(Dormitorio dormitorio);
+
+    default TarifaResponse toTarifaResponse(Tarifa tarifa) {
+        return new TarifaResponse(tarifa.id(), tarifa.temporadaId(), tarifa.valorPorNoche().monto(), tarifa.vigenteDesde());
+    }
+
+    List<TarifaResponse> toTarifaResponses(List<Tarifa> tarifas);
 }

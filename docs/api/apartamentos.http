@@ -1,13 +1,13 @@
 ### Recorrido del apartamento. Con la aplicación corriendo en http://localhost:8080
 ### (en IntelliJ: abrir este archivo y pulsar el triángulo verde de cada petición)
 
-### 1) Crear un apartamento -> 201 Created + encabezado Location: /api/apartamentos/ATK-001
+### 1) Crear un apartamento -> 201 Created + encabezado Location: /api/apartamentos/TST-001 (los 15 apartamentos de la Ficha ya existen al arrancar)
 POST http://localhost:8080/api/apartamentos
 Content-Type: application/json
 
 {
-  "identificacion": "ATK-001",
-  "nombre": "Attack Suite",
+  "identificacion": "TST-001",
+  "nombre": "Suite de pruebas",
   "capacidad": 4,
   "dormitorios": [
     { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" },
@@ -17,7 +17,7 @@ Content-Type: application/json
 }
 
 ### 2) Consultarlo -> 200 OK
-GET http://localhost:8080/api/apartamentos/ATK-001
+GET http://localhost:8080/api/apartamentos/TST-001
 
 ### 3) Crear el mismo otra vez -> 409 Conflict (regla L-04: identificación única)
 POST http://localhost:8080/api/apartamentos
@@ -63,15 +63,17 @@ GET http://localhost:8080/api/apartamentos/NO-EXISTE
 ### 7) Consultar el alojamiento -> 200 OK (parámetros de application.properties, temporada base y política v1)
 GET http://localhost:8080/api/alojamiento
 
-### 8) Registrar una temporada -> 201 Created + Location
+### 8) Registrar una temporada -> 201 Created + Location (el script guarda su id para la prueba 19)
 POST http://localhost:8080/api/alojamiento/temporadas
 Content-Type: application/json
 
 {
-  "nombre": "Despliegue de Misión",
-  "fechaInicio": "2026-12-15",
-  "fechaFin": "2027-01-16"
+  "nombre": "Alta (mitad de año)",
+  "fechaInicio": "2027-06-01",
+  "fechaFin": "2027-08-01"
 }
+
+> {% client.global.set("temporadaNuevaId", response.body.id); %}
 
 ### 9) Una temporada que se solapa con la anterior -> 409 Conflict
 POST http://localhost:8080/api/alojamiento/temporadas
@@ -79,8 +81,8 @@ Content-Type: application/json
 
 {
   "nombre": "Se solapa",
-  "fechaInicio": "2027-01-10",
-  "fechaFin": "2027-01-20"
+  "fechaInicio": "2027-07-10",
+  "fechaFin": "2027-07-20"
 }
 
 ### 10) Fechas invertidas -> 409 Conflict (regla de dominio: la salida debe ser posterior a la entrada)
@@ -105,3 +107,236 @@ Content-Type: application/json
 
 ### 12) Identificador que no es UUID -> 400 Bad Request
 GET http://localhost:8080/api/alojamiento/temporadas/no-es-un-uuid
+
+### ---------------- Tarifas (los 15 apartamentos nacen con una tarifa por temporada) ----------------
+
+### 13) Leer el alojamiento y guardar los ids de sus temporadas (el script los deja en variables)
+GET http://localhost:8080/api/alojamiento
+
+> {% client.global.set("temporadaBaseId", response.body.temporadas.find(t => t.esBase).id); %}
+
+### 14) Histórico de tarifas del apartamento -> 200 OK (una tarifa por temporada, de la Ficha)
+GET http://localhost:8080/api/apartamentos/ATK-001/tarifas
+
+### 15) Histórico de una sola temporada -> 200 OK
+GET http://localhost:8080/api/apartamentos/ATK-001/tarifas?temporadaId={{temporadaBaseId}}
+
+### 16) Subir la tarifa base desde una fecha futura -> 201 Created + Location (el histórico conserva la anterior)
+POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Content-Type: application/json
+
+{
+  "temporadaId": "{{temporadaBaseId}}",
+  "valorPorNoche": 90000,
+  "vigenteDesde": "2027-01-01"
+}
+
+### 17) Una tarifa que no rige después de la más reciente -> 409 Conflict
+POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Content-Type: application/json
+
+{
+  "temporadaId": "{{temporadaBaseId}}",
+  "valorPorNoche": 95000,
+  "vigenteDesde": "2027-01-01"
+}
+
+### 18) Valor en cero -> 400 Bad Request
+POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Content-Type: application/json
+
+{
+  "temporadaId": "{{temporadaBaseId}}",
+  "valorPorNoche": 0,
+  "vigenteDesde": "2027-02-01"
+}
+
+### 19) Tarifa para la temporada registrada en la prueba 8 -> 201 Created (ejecutar antes la 8)
+POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Content-Type: application/json
+
+{
+  "temporadaId": "{{temporadaNuevaId}}",
+  "valorPorNoche": 125000,
+  "vigenteDesde": "2026-01-01"
+}
+
+### 20) Temporada que no existe -> 404 Not Found
+POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Content-Type: application/json
+
+{
+  "temporadaId": "00000000-0000-0000-0000-000000000000",
+  "valorPorNoche": 90000,
+  "vigenteDesde": "2027-03-01"
+}
+
+### 21) Apartamento que no existe -> 404 Not Found
+GET http://localhost:8080/api/apartamentos/NO-EXISTE/tarifas
+
+### ---------------- Política de cancelación ----------------
+
+### 22) Todas las versiones -> 200 OK (al arrancar solo existe la versión 1 de la Ficha)
+GET http://localhost:8080/api/alojamiento/politica-cancelacion
+
+### 23) Consultar la versión 1 -> 200 OK
+GET http://localhost:8080/api/alojamiento/politica-cancelacion/1
+
+### 24) Definir una nueva versión -> 201 Created + Location: /api/alojamiento/politica-cancelacion/2
+POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Content-Type: application/json
+
+{
+  "vigenteDesde": "2027-01-01",
+  "tramos": [
+    { "antelacionMinimaHoras": 240, "porcentajeRetencion": 0.00 },
+    { "antelacionMinimaHoras": 72, "porcentajeRetencion": 0.30 },
+    { "antelacionMinimaHoras": 0, "porcentajeRetencion": 1.00 }
+  ]
+}
+
+### 25) Vigencia que no es posterior a la versión más reciente -> 409 Conflict
+POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Content-Type: application/json
+
+{
+  "vigenteDesde": "2027-01-01",
+  "tramos": [
+    { "antelacionMinimaHoras": 168, "porcentajeRetencion": 0.00 },
+    { "antelacionMinimaHoras": 0, "porcentajeRetencion": 1.00 }
+  ]
+}
+
+### 26) Un solo tramo -> 409 Conflict (7.4: mínimo dos tramos)
+POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Content-Type: application/json
+
+{
+  "vigenteDesde": "2027-06-01",
+  "tramos": [
+    { "antelacionMinimaHoras": 0, "porcentajeRetencion": 1.00 }
+  ]
+}
+
+### 27) Sin tramo de 0 horas -> 409 Conflict
+POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Content-Type: application/json
+
+{
+  "vigenteDesde": "2027-06-01",
+  "tramos": [
+    { "antelacionMinimaHoras": 168, "porcentajeRetencion": 0.00 },
+    { "antelacionMinimaHoras": 72, "porcentajeRetencion": 0.50 }
+  ]
+}
+
+### 28) Retención mayor a 1 -> 400 Bad Request
+POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Content-Type: application/json
+
+{
+  "vigenteDesde": "2027-06-01",
+  "tramos": [
+    { "antelacionMinimaHoras": 168, "porcentajeRetencion": 1.50 },
+    { "antelacionMinimaHoras": 0, "porcentajeRetencion": 1.00 }
+  ]
+}
+
+### 29) Versión que no existe -> 404 Not Found
+GET http://localhost:8080/api/alojamiento/politica-cancelacion/99
+
+### ---------------- Cotizaciones (RN-05, RN-06 y RN-Propia-01) ----------------
+
+### 30) 2 noches en temporada Media, 2 adultos y 1 niña de 7 años -> 200 OK. La niña no se factura:
+###     2 noches x 100.000 x 2 adultos = valorTotal 400000
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" },
+    { "documento": "1000000002", "nombre": "Adulto Dos", "fechaNacimiento": "1992-08-20" },
+    { "documento": "1000000003", "nombre": "Niña", "fechaNacimiento": "2019-03-10" }
+  ]
+}
+
+### 31) 5 noches cruzando de Media a Alta: descuento del 10% en cada noche -> 200 OK
+###     (2 x 90.000 + 3 x 112.500) x 2 adultos = valorTotal 1035000
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-13",
+  "fechaSalida": "2026-12-18",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" },
+    { "documento": "1000000002", "nombre": "Adulto Dos", "fechaNacimiento": "1992-08-20" }
+  ]
+}
+
+### 32) Salida igual a la entrada -> 409 Conflict (RN-03)
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-01",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" }
+  ]
+}
+
+### 33) Solo menores de 12 años -> 409 Conflict (no hay ocupantes facturables)
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": [
+    { "documento": "1000000003", "nombre": "Niña", "fechaNacimiento": "2019-03-10" }
+  ]
+}
+
+### 34) Apartamento sin tarifa para la temporada (TST-001, creado en la prueba 1, no tiene tarifas) -> 409 Conflict
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "TST-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" }
+  ]
+}
+
+### 35) Apartamento que no existe -> 404 Not Found
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "NO-EXISTE",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" }
+  ]
+}
+
+### 36) Sin ocupantes -> 400 Bad Request
+POST http://localhost:8080/api/cotizaciones
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": []
+}
