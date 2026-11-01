@@ -4,7 +4,7 @@ import co.edu.uniquindio.sga.application.exception.AlojamientoNoEncontradoExcept
 import co.edu.uniquindio.sga.application.exception.ApartamentoNoEncontradoException;
 import co.edu.uniquindio.sga.application.exception.FolioNoEncontradoException;
 import co.edu.uniquindio.sga.application.exception.PoliticaCancelacionNoEncontradaException;
-import co.edu.uniquindio.sga.application.exception.ReservaNoEncontradadException;
+import co.edu.uniquindio.sga.application.exception.ReservaNoEncontradaException;
 import co.edu.uniquindio.sga.application.exception.TemporadaNoEncontradaException;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import org.springframework.http.HttpStatus;
@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
             AlojamientoNoEncontradoException.class,
             TemporadaNoEncontradaException.class,
             ApartamentoNoEncontradoException.class,
-            ReservaNoEncontradadException.class,
+            ReservaNoEncontradaException.class,
             FolioNoEncontradoException.class,
             PoliticaCancelacionNoEncontradaException.class
     })

@@ -14,7 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import co.edu.uniquindio.sga.domain.valueobject.VersionPolitica;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -78,11 +80,14 @@ class GestionBloqueoServiceTest {
         );
 
         Reserva reserva = new Reserva(
+                new CodigoReserva("RES-2026-00001"),
                 "APT-101",
                 Titular.crear("123", "Ana", LocalDate.of(1995, 4, 12)),
                 estanciaReserva,
                 CanalOrigen.DIRECTO,
-                cotizacion
+                cotizacion,
+                new VersionPolitica(1, LocalDate.of(2026, 1, 1)),
+                LocalDateTime.of(2026, 10, 1, 9, 0)
         );
         reserva.confirmar();
         reservaRepository.guardar(reserva);

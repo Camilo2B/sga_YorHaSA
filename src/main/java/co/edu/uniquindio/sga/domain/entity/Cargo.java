@@ -39,6 +39,14 @@ public final class Cargo {
         return new Cargo(UUID.randomUUID(), tipo, valor);
     }
 
+    /** Reconstruye un cargo ya existente (la usa la persistencia): conserva su identidad. */
+    public static Cargo reconstruir(UUID id, TipoCargo tipo, Dinero valor) {
+        Objects.requireNonNull(id, "El identificador del cargo no puede ser nulo");
+        Objects.requireNonNull(tipo, "El tipo de cargo no puede ser nulo");
+        Objects.requireNonNull(valor, "El valor del cargo no puede ser nulo");
+        return new Cargo(id, tipo, valor);
+    }
+
     public UUID id() {
         return id;
     }

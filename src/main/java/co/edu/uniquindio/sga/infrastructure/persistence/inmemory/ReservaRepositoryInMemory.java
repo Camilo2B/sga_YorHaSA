@@ -5,7 +5,6 @@ import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
 import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
-import org.springframework.stereotype.Repository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -13,10 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Implementación en memoria usando HashMap exigida por la rúbrica para la Entrega 1.
- */
-@Repository
+/** Adaptador en memoria: solo para pruebas unitarias del dominio. La aplicación usa ReservaJpaRepository. */
 public class ReservaRepositoryInMemory implements ReservaRepository {
 
     private final Map<UUID, Reserva> tablaReservas = new HashMap<>();
@@ -32,8 +28,7 @@ public class ReservaRepositoryInMemory implements ReservaRepository {
 
     @Override
     public Optional<Reserva> obtenerPorCodigo(CodigoReserva codigo) {
-        // Pendiente: CodigoReserva aún no tiene valor real (hoy es un record vacío), así que no hay por qué buscar.
-        return Optional.empty();
+        return tablaReservas.values().stream().filter(r -> r.getCodigo().equals(codigo)).findFirst();
     }
 
     @Override

@@ -1,6 +1,6 @@
 package co.edu.uniquindio.sga.application.usecase;
 
-import co.edu.uniquindio.sga.application.exception.ReservaNoEncontradadException;
+import co.edu.uniquindio.sga.application.exception.ReservaNoEncontradaException;
 import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
 import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
@@ -15,7 +15,7 @@ public class ConfirmarReservaUseCase {
 
     public void ejecutar(CodigoReserva codigo){
         Reserva reserva = reservaRepository.obtenerPorCodigo(codigo)
-                .orElseThrow(() -> new ReservaNoEncontradadException(codigo));
+                .orElseThrow(() -> new ReservaNoEncontradaException(codigo));
 
         reserva.confirmar();
         reservaRepository.guardar(reserva);

@@ -31,7 +31,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReservaResponse'
+                $ref: '#/components/schemas/ReservaDetalleResponse'
         '400':
           description: La forma del mensaje es inválida (campos faltantes, JSON malformado o valores no permitidos).
           content:
@@ -45,7 +45,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Regla de negocio violada (capacidad superada, fechas inválidas, estancia solapada, etc.).
+          description: >-
+            Regla de negocio violada: entrada anterior a hoy (RN-04), salida no posterior a la entrada (RN-03), titular menor
+            del umbral, ocupante repetido, capacidad superada (RN-02, la mascota ocupa un cupo: RN-Propia-03), apartamento
+            no disponible por reserva solapada o bloqueo (RN-01, RN-07) o sin tarifa para alguna noche.
           content:
             application/json:
               schema:
@@ -88,9 +91,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReservaResponse'
+                $ref: '#/components/schemas/ReservaDetalleResponse'
         '404':
-          description: Reserva no encontrada.
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
           content:
             application/json:
               schema:
@@ -649,33 +652,43 @@ components:
     CrearReservaRequest:
       type: object
       required:
-        - apartamentoId
+        - identificacionApartamento
         - fechaEntrada
         - fechaSalida
-        - titularId
-        - cantidadOcupantes
-        - tieneMascota
+        - canalOrigen
+        - titular
+        - ocupantes
       properties:
-        apartamentoId:
+        identificacionApartamento:
           type: string
           example: ATK-001
         fechaEntrada:
           type: string
           format: date
-          example: "2026-10-15"
+          example: "2026-12-13"
         fechaSalida:
           type: string
           format: date
-          example: "2026-10-20"
-        titularId:
+          description: Exclusiva; la noche de la salida no se cobra.
+          example: "2026-12-18"
+        canalOrigen:
           type: string
-          example: "1094123456"
-        cantidadOcupantes:
-          type: integer
-          example: 3
-        tieneMascota:
+          enum: [PORTAL, DIRECTO, EXTERNO]
+        horaEstimadaLlegada:
+          type: string
+          example: "15:30"
+          description: Opcional al crear (obligatoria antes de confirmar, RN-09). Entre las 22:00 y las 05:00 genera el recargo de RN-Propia-02.
+        conMascota:
           type: boolean
-          example: false
+          default: false
+          description: Con mascota se ocupa un cupo del apartamento (RN-Propia-03).
+        titular:
+          $ref: '#/components/schemas/OcupanteRequest'
+        ocupantes:
+          type: array
+          description: Acompañantes del titular (el titular ya cuenta como ocupante). Puede ir vacía.
+          items:
+            $ref: '#/components/schemas/OcupanteRequest'
 
     BloquearApartamentoRequest:
       type: object
@@ -1074,6 +1087,80 @@ components:
         moneda:
           type: string
           example: COP
+
+    OcupanteResponse:
+      type: object
+      properties:
+        documento:
+          type: string
+        nombre:
+          type: string
+        fechaNacimiento:
+          type: string
+          format: date
+
+    ReservaDetalleResponse:
+      type: object
+      description: Valores en pesos colombianos sin decimales.
+      properties:
+        codigo:
+          type: string
+          example: RES-2026-00001
+        estado:
+          type: string
+          enum: [PENDIENTE, CONFIRMADA, EN_CURSO, FINALIZADA, CANCELADA, NO_SHOW]
+        canalOrigen:
+          type: string
+          enum: [PORTAL, DIRECTO, EXTERNO]
+        identificacionApartamento:
+          type: string
+          example: ATK-001
+        fechaEntrada:
+          type: string
+          format: date
+        fechaSalida:
+          type: string
+          format: date
+        noches:
+          type: integer
+        horaEstimadaLlegada:
+          type: string
+          nullable: true
+          example: "15:30"
+        conMascota:
+          type: boolean
+        titular:
+          $ref: '#/components/schemas/OcupanteResponse'
+        ocupantes:
+          type: array
+          description: Todos los ocupantes, incluido el titular.
+          items:
+            $ref: '#/components/schemas/OcupanteResponse'
+        totalOcupantes:
+          type: integer
+        valorTotal:
+          type: integer
+          format: int64
+          description: Valor de la cotización congelada al crear la reserva (RN-22).
+          example: 1035000
+        totalCargosFolio:
+          type: integer
+          format: int64
+          description: Suma de cargos del folio (hospedaje más cargos extra, como el recargo por llegada nocturna).
+          example: 1065000
+        moneda:
+          type: string
+          example: COP
+        versionPoliticaCancelacion:
+          type: string
+          description: Versión de la política congelada en la reserva (RN-13, RN-22).
+          example: v1
+        fechaCreacion:
+          type: string
+          format: date
+        motivoCancelacion:
+          type: string
+          nullable: true
 
     ErrorResponse:
       type: object

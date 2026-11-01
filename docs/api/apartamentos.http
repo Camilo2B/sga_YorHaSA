@@ -340,3 +340,199 @@ Content-Type: application/json
   "fechaSalida": "2026-12-03",
   "ocupantes": []
 }
+
+### ---------------- Reservas (crear y consultar) ----------------
+
+### 37) Crear una reserva de 5 noches con 1 acompañante -> 201 Created + Location. El script guarda el código.
+###     Valor esperado: (2 x 90.000 + 3 x 112.500) x 2 ocupantes = valorTotal 1035000, estado PENDIENTE, versión v1
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-13",
+  "fechaSalida": "2026-12-18",
+  "canalOrigen": "PORTAL",
+  "conMascota": false,
+  "titular": { "documento": "1000000001", "nombre": "Carlos Pérez", "fechaNacimiento": "1990-05-01" },
+  "ocupantes": [
+    { "documento": "1000000002", "nombre": "Ana Gómez", "fechaNacimiento": "1992-08-20" }
+  ]
+}
+
+> {% client.global.set("codigoReserva", response.body.codigo); %}
+
+### 38) Consultar la reserva creada -> 200 OK
+GET http://localhost:8080/api/reservas/{{codigoReserva}}
+
+### 39) Se solapa con la reserva de la prueba 37 -> 409 Conflict (RN-01)
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-15",
+  "fechaSalida": "2026-12-17",
+  "canalOrigen": "DIRECTO",
+  "titular": { "documento": "1000000010", "nombre": "Otro Huésped", "fechaNacimiento": "1988-01-10" },
+  "ocupantes": []
+}
+
+### 40) Empieza el día de salida de la anterior (la noche de salida no se ocupa) -> 201 Created
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-18",
+  "fechaSalida": "2026-12-20",
+  "canalOrigen": "DIRECTO",
+  "titular": { "documento": "1000000010", "nombre": "Otro Huésped", "fechaNacimiento": "1988-01-10" },
+  "ocupantes": []
+}
+
+### 41) Llegada nocturna (23:30): suma el recargo de 30.000 al folio -> 201 Created, totalCargosFolio = valorTotal + 30000
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-002",
+  "fechaEntrada": "2026-11-10",
+  "fechaSalida": "2026-11-12",
+  "canalOrigen": "PORTAL",
+  "horaEstimadaLlegada": "23:30",
+  "titular": { "documento": "1000000020", "nombre": "Llegada Tardía", "fechaNacimiento": "1985-03-12" },
+  "ocupantes": []
+}
+
+### 42) Con mascota: 4 ocupantes + mascota superan la capacidad de 4 de ATK-001 -> 409 Conflict (RN-Propia-03)
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2027-02-01",
+  "fechaSalida": "2027-02-03",
+  "canalOrigen": "PORTAL",
+  "conMascota": true,
+  "titular": { "documento": "1000000030", "nombre": "Titular Uno", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": [
+    { "documento": "1000000031", "nombre": "Ocupante Dos", "fechaNacimiento": "1981-01-01" },
+    { "documento": "1000000032", "nombre": "Ocupante Tres", "fechaNacimiento": "1982-01-01" },
+    { "documento": "1000000033", "nombre": "Ocupante Cuatro", "fechaNacimiento": "1983-01-01" }
+  ]
+}
+
+### 43) Cinco ocupantes en un apartamento de 4 -> 409 Conflict (RN-02)
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2027-02-01",
+  "fechaSalida": "2027-02-03",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000030", "nombre": "Titular Uno", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": [
+    { "documento": "1000000031", "nombre": "Ocupante Dos", "fechaNacimiento": "1981-01-01" },
+    { "documento": "1000000032", "nombre": "Ocupante Tres", "fechaNacimiento": "1982-01-01" },
+    { "documento": "1000000033", "nombre": "Ocupante Cuatro", "fechaNacimiento": "1983-01-01" },
+    { "documento": "1000000034", "nombre": "Ocupante Cinco", "fechaNacimiento": "1984-01-01" }
+  ]
+}
+
+### 44) Entrada anterior a hoy -> 409 Conflict (RN-04)
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2020-01-10",
+  "fechaSalida": "2020-01-12",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000040", "nombre": "Del Pasado", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": []
+}
+
+### 45) Titular menor de 12 años -> 409 Conflict (3.2)
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2027-03-01",
+  "fechaSalida": "2027-03-03",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000050", "nombre": "Menor de Edad", "fechaNacimiento": "2020-06-01" },
+  "ocupantes": []
+}
+
+### 46) Salida igual a la entrada -> 409 Conflict (RN-03)
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2027-03-01",
+  "fechaSalida": "2027-03-01",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000060", "nombre": "Sin Noches", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": []
+}
+
+### 47) Apartamento sin tarifa para la temporada (TST-001, creado en la prueba 1) -> 409 Conflict
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "TST-001",
+  "fechaEntrada": "2027-03-01",
+  "fechaSalida": "2027-03-03",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000070", "nombre": "Sin Tarifa", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": []
+}
+
+### 48) Apartamento que no existe -> 404 Not Found
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "NO-EXISTE",
+  "fechaEntrada": "2027-03-01",
+  "fechaSalida": "2027-03-03",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000080", "nombre": "Sin Apartamento", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": []
+}
+
+### 49) Sin titular -> 400 Bad Request
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2027-03-01",
+  "fechaSalida": "2027-03-03",
+  "canalOrigen": "PORTAL",
+  "ocupantes": []
+}
+
+### 50) Canal de origen inválido -> 400 Bad Request
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2027-03-01",
+  "fechaSalida": "2027-03-03",
+  "canalOrigen": "PALOMA_MENSAJERA",
+  "titular": { "documento": "1000000090", "nombre": "Canal Raro", "fechaNacimiento": "1980-01-01" },
+  "ocupantes": []
+}
+
+### 51) Código de reserva que no existe -> 404 Not Found
+GET http://localhost:8080/api/reservas/RES-2026-99999
+
+### 52) Código con formato inválido -> 404 Not Found
+GET http://localhost:8080/api/reservas/ABC

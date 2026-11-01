@@ -7,6 +7,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+/**
+ * Detalle de una reserva. Los valores en dinero son pesos colombianos sin decimales (3.4). "ocupantes" incluye al
+ * titular. valorTotal es el de la cotización congelada (hospedaje); totalCargosFolio suma además los cargos extra
+ * (por ejemplo el recargo por llegada nocturna).
+ */
 public record ReservaDetalleResponse(
         String codigo,                      // "RES-2026-00001", no el objeto CodigoReserva
         EstadoReserva estado,
@@ -16,10 +21,12 @@ public record ReservaDetalleResponse(
         LocalDate fechaSalida,
         int noches,
         LocalTime horaEstimadaLlegada,      // null hasta que se registre (RN-09)
+        boolean conMascota,
         OcupanteResponse titular,
         List<OcupanteResponse> ocupantes,
         int totalOcupantes,
-        long valorTotal,                    // pesos, sin decimales (3.4)
+        long valorTotal,
+        long totalCargosFolio,
         String moneda,                      // "COP"
         String versionPoliticaCancelacion,  // la congelada en la reserva (RN-22)
         LocalDate fechaCreacion,

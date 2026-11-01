@@ -1,14 +1,20 @@
 package co.edu.uniquindio.sga.infrastructure.config;
 
 import co.edu.uniquindio.sga.domain.repository.ApartamentoRepository;
+import co.edu.uniquindio.sga.domain.repository.GeneradorCodigoReserva;
+import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
 import co.edu.uniquindio.sga.domain.service.CotizadorEstanciaService;
+import co.edu.uniquindio.sga.domain.service.CreacionReservaService;
+import co.edu.uniquindio.sga.domain.service.DisponibilidadApartamentoService;
 import co.edu.uniquindio.sga.domain.service.RegistroApartamentoService;
 import co.edu.uniquindio.sga.domain.valueobject.DescuentoEstanciaProlongada;
+import co.edu.uniquindio.sga.domain.valueobject.Dinero;
 import co.edu.uniquindio.sga.domain.valueobject.HoraLimiteNoShow;
 import co.edu.uniquindio.sga.domain.valueobject.HorarioAlojamiento;
 import co.edu.uniquindio.sga.domain.valueobject.ParametrosAlojamiento;
 import co.edu.uniquindio.sga.domain.valueobject.PlazoConfirmacion;
 import co.edu.uniquindio.sga.domain.valueobject.PoliticaAnticipo;
+import co.edu.uniquindio.sga.domain.valueobject.RecargoLlegadaNocturna;
 import co.edu.uniquindio.sga.domain.valueobject.TiempoPreparacion;
 import co.edu.uniquindio.sga.domain.valueobject.UmbralEdadFacturable;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -22,7 +28,7 @@ import java.time.ZoneId;
 /**
  * Registra como beans los servicios de dominio (clases Java puras, que no conocen a Spring) y los parámetros de la
  * Ficha. Los valores salen de application.properties: cambiarlos no requiere recompilar.
- * Pendiente: DisponibilidadApartamentoService y GestionBloqueoService (necesitan el adaptador JPA de Reserva).
+ * Pendiente: GestionBloqueoService.
  */
 @Configuration
 @EnableConfigurationProperties(AlojamientoProperties.class)
@@ -57,5 +63,26 @@ public class DomainServiceConfig {
         return new CotizadorEstanciaService(new DescuentoEstanciaProlongada(
                 propiedades.nochesDescuentoEstanciaProlongada(),
                 propiedades.porcentajeDescuentoEstanciaProlongada()));
+    }
+
+    @Bean
+    public DisponibilidadApartamentoService disponibilidadApartamentoService(ApartamentoRepository apartamentoRepository,
+                                                                              ReservaRepository reservaRepository) {
+        return new DisponibilidadApartamentoService(apartamentoRepository, reservaRepository);
+    }
+
+    /** RN-Propia-02: el valor y la franja del recargo por llegada nocturna salen de la configuración. */
+    @Bean
+    public RecargoLlegadaNocturna recargoLlegadaNocturna(AlojamientoProperties propiedades) {
+        return new RecargoLlegadaNocturna(Dinero.de(propiedades.recargoLlegadaNocturna()),
+                LocalTime.parse(propiedades.horaInicioLlegadaNocturna()), LocalTime.parse(propiedades.horaFinLlegadaNocturna()));
+    }
+
+    @Bean
+    public CreacionReservaService creacionReservaService(DisponibilidadApartamentoService disponibilidadService,
+                                                         CotizadorEstanciaService cotizadorService,
+                                                         GeneradorCodigoReserva generadorCodigo,
+                                                         RecargoLlegadaNocturna recargoLlegadaNocturna) {
+        return new CreacionReservaService(disponibilidadService, cotizadorService, generadorCodigo, recargoLlegadaNocturna);
     }
 }

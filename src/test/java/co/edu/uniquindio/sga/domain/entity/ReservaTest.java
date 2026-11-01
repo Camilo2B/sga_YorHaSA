@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,7 +28,8 @@ class ReservaTest {
                 ))
         );
 
-        return new Reserva(apartamentoId, titular, estancia, CanalOrigen.DIRECTO, cotizacion);
+        return new Reserva(new CodigoReserva("RES-2026-00001"), apartamentoId, titular, estancia, CanalOrigen.DIRECTO, cotizacion,
+                new VersionPolitica(1, LocalDate.of(2026, 1, 1)), LocalDateTime.of(2026, 10, 1, 9, 0));
     }
 
     @Test

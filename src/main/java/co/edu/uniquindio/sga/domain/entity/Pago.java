@@ -44,6 +44,15 @@ public final class Pago {
         return new Pago(UUID.randomUUID(), medio, fecha, valor);
     }
 
+    /** Reconstruye un pago ya registrado (la usa la persistencia): conserva su identidad. */
+    public static Pago reconstruir(UUID id, MedioPago medio, LocalDate fecha, Dinero valor) {
+        Objects.requireNonNull(id, "El identificador del pago no puede ser nulo");
+        Objects.requireNonNull(medio, "El medio de pago no puede ser nulo");
+        Objects.requireNonNull(fecha, "La fecha del pago no puede ser nula");
+        Objects.requireNonNull(valor, "El valor del pago no puede ser nulo");
+        return new Pago(id, medio, fecha, valor);
+    }
+
     public UUID id() {
         return id;
     }
