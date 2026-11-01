@@ -7,7 +7,9 @@ import co.edu.uniquindio.sga.application.dto.response.TarifaResponse;
 import co.edu.uniquindio.sga.application.usecase.ConsultarApartamentoUseCase;
 import co.edu.uniquindio.sga.application.usecase.CrearApartamentoUseCase;
 import co.edu.uniquindio.sga.application.usecase.DefinirTarifaUseCase;
+import co.edu.uniquindio.sga.application.usecase.IniciarPreparacionApartamentoUseCase;
 import co.edu.uniquindio.sga.application.usecase.ListarTarifasApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.MarcarApartamentoPreparadoUseCase;
 import co.edu.uniquindio.sga.domain.entity.Apartamento;
 import co.edu.uniquindio.sga.domain.entity.Tarifa;
 import co.edu.uniquindio.sga.domain.valueobject.Dinero;
@@ -17,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,17 +39,23 @@ public class ApartamentoController {
     private final ConsultarApartamentoUseCase consultarApartamentoUseCase;
     private final DefinirTarifaUseCase definirTarifaUseCase;
     private final ListarTarifasApartamentoUseCase listarTarifasApartamentoUseCase;
+    private final IniciarPreparacionApartamentoUseCase iniciarPreparacionApartamentoUseCase;
+    private final MarcarApartamentoPreparadoUseCase marcarApartamentoPreparadoUseCase;
     private final ApartamentoMapper mapper;
 
     public ApartamentoController(CrearApartamentoUseCase crearApartamentoUseCase,
                                  ConsultarApartamentoUseCase consultarApartamentoUseCase,
                                  DefinirTarifaUseCase definirTarifaUseCase,
                                  ListarTarifasApartamentoUseCase listarTarifasApartamentoUseCase,
+                                 IniciarPreparacionApartamentoUseCase iniciarPreparacionApartamentoUseCase,
+                                 MarcarApartamentoPreparadoUseCase marcarApartamentoPreparadoUseCase,
                                  ApartamentoMapper mapper) {
         this.crearApartamentoUseCase = crearApartamentoUseCase;
         this.consultarApartamentoUseCase = consultarApartamentoUseCase;
         this.definirTarifaUseCase = definirTarifaUseCase;
         this.listarTarifasApartamentoUseCase = listarTarifasApartamentoUseCase;
+        this.iniciarPreparacionApartamentoUseCase = iniciarPreparacionApartamentoUseCase;
+        this.marcarApartamentoPreparadoUseCase = marcarApartamentoPreparadoUseCase;
         this.mapper = mapper;
     }
 
@@ -80,5 +89,17 @@ public class ApartamentoController {
     public List<TarifaResponse> listarTarifas(@PathVariable String identificacion,
                                               @RequestParam(required = false) UUID temporadaId) {
         return mapper.toTarifaResponses(listarTarifasApartamentoUseCase.ejecutar(identificacion, temporadaId));
+    }
+
+    /** 7.6: el personal de servicio empieza a preparar el apartamento (PENDIENTE_PREPARACION -> EN_PREPARACION). */
+    @PutMapping("/{identificacion}/iniciar-preparacion")
+    public ApartamentoResponse iniciarPreparacion(@PathVariable String identificacion) {
+        return mapper.toResponse(iniciarPreparacionApartamentoUseCase.ejecutar(identificacion));
+    }
+
+    /** 7.6: el apartamento queda listo para el siguiente grupo (EN_PREPARACION -> PREPARADO). */
+    @PutMapping("/{identificacion}/marcar-preparado")
+    public ApartamentoResponse marcarPreparado(@PathVariable String identificacion) {
+        return mapper.toResponse(marcarApartamentoPreparadoUseCase.ejecutar(identificacion));
     }
 }

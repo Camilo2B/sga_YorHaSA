@@ -1,5 +1,6 @@
 package co.edu.uniquindio.sga.infrastructure.rest.mapper;
 
+import co.edu.uniquindio.sga.application.dto.request.ConfirmarReservaRequest;
 import co.edu.uniquindio.sga.application.dto.request.CrearReservaRequest;
 import co.edu.uniquindio.sga.application.dto.request.OcupanteRequest;
 import co.edu.uniquindio.sga.application.dto.response.OcupanteResponse;
@@ -9,11 +10,14 @@ import co.edu.uniquindio.sga.domain.entity.Ocupante;
 import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.entity.Titular;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
+import co.edu.uniquindio.sga.domain.valueobject.Cancelacion;
 import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
+import co.edu.uniquindio.sga.domain.valueobject.MedioPago;
 import co.edu.uniquindio.sga.domain.valueobject.SolicitudReserva;
 import org.mapstruct.Mapper;
 
+import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -53,6 +57,19 @@ public interface ReservaMapper {
         }
     }
 
+    /** El cuerpo de confirmar es opcional: sin cuerpo no hay medio de pago. */
+    default MedioPago toMedioPago(ConfirmarReservaRequest request) {
+        return request == null ? null : request.medioPago();
+    }
+
+    default LocalTime toHoraEstimadaLlegada(ConfirmarReservaRequest request) {
+        return request == null ? null : request.horaEstimadaLlegada();
+    }
+
+    default String toReferencia(ConfirmarReservaRequest request) {
+        return request == null ? null : request.referencia();
+    }
+
     default OcupanteResponse toOcupanteResponse(Ocupante ocupante) {
         return new OcupanteResponse(ocupante.documento(), ocupante.nombre(), ocupante.fechaNacimiento());
     }
@@ -76,6 +93,8 @@ public interface ReservaMapper {
                 reserva.getCotizacion().valorTotal().moneda(),
                 "v" + reserva.getVersionPolitica().numero(),
                 reserva.getFechaCreacion().toLocalDate(),
-                null);
+                reserva.getCancelacion().map(Cancelacion::motivo).orElse(null),
+                reserva.getCancelacion().map(c -> c.retenido().monto().longValueExact()).orElse(null),
+                reserva.getCancelacion().map(c -> c.devuelto().monto().longValueExact()).orElse(null));
     }
 }

@@ -3,6 +3,7 @@ package co.edu.uniquindio.sga.domain.entity;
 import co.edu.uniquindio.sga.domain.entity.Ocupante;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import co.edu.uniquindio.sga.domain.valueobject.CanalOrigen;
+import co.edu.uniquindio.sga.domain.valueobject.Cancelacion;
 import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Cotizacion;
 import co.edu.uniquindio.sga.domain.valueobject.DetalleNoche;
@@ -10,6 +11,10 @@ import co.edu.uniquindio.sga.domain.valueobject.Dinero;
 import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 import co.edu.uniquindio.sga.domain.valueobject.Gravedad;
+import co.edu.uniquindio.sga.domain.valueobject.HoraLimiteNoShow;
+import co.edu.uniquindio.sga.domain.valueobject.MedioPago;
+import co.edu.uniquindio.sga.domain.valueobject.PlazoConfirmacion;
+import co.edu.uniquindio.sga.domain.valueobject.PoliticaAnticipo;
 import co.edu.uniquindio.sga.domain.valueobject.RecargoLlegadaNocturna;
 import co.edu.uniquindio.sga.domain.valueobject.TipoCargo;
 import co.edu.uniquindio.sga.domain.valueobject.VersionPolitica;
@@ -18,9 +23,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -42,6 +49,7 @@ public class Reserva {
     private final LocalDateTime fechaCreacion;
     private final boolean conMascota;
     private LocalTime horaEstimadaLlegada;
+    private Cancelacion cancelacion;
     private final Folio folio;
     private final List<Ocupante> ocupantes;
     private final List<Novedad> novedades;
@@ -70,6 +78,7 @@ public class Reserva {
         this.fechaCreacion = Objects.requireNonNull(fechaCreacion, "La fecha de creación no puede ser nula.");
         this.conMascota = conMascota;
         this.horaEstimadaLlegada = null;
+        this.cancelacion = null;
 
         this.estado = EstadoReserva.PENDIENTE;
         this.folio = new Folio(this.id);
@@ -81,8 +90,8 @@ public class Reserva {
 
     private Reserva(UUID id, CodigoReserva codigo, String apartamentoId, Titular titular, Estancia estancia,
                     CanalOrigen canalOrigen, EstadoReserva estado, Cotizacion cotizacion, VersionPolitica versionPolitica,
-                    LocalDateTime fechaCreacion, boolean conMascota, LocalTime horaEstimadaLlegada, Folio folio,
-                    List<Ocupante> ocupantes, List<Novedad> novedades) {
+                    LocalDateTime fechaCreacion, boolean conMascota, LocalTime horaEstimadaLlegada,
+                    Cancelacion cancelacion, Folio folio, List<Ocupante> ocupantes, List<Novedad> novedades) {
         this.id = Objects.requireNonNull(id, "El ID de la reserva no puede ser nulo.");
         this.codigo = Objects.requireNonNull(codigo, "El código de la reserva no puede ser nulo.");
         this.apartamentoId = Objects.requireNonNull(apartamentoId, "El ID del apartamento no puede ser nulo.");
@@ -95,6 +104,7 @@ public class Reserva {
         this.fechaCreacion = Objects.requireNonNull(fechaCreacion, "La fecha de creación no puede ser nula.");
         this.conMascota = conMascota;
         this.horaEstimadaLlegada = horaEstimadaLlegada;
+        this.cancelacion = cancelacion;
         this.folio = Objects.requireNonNull(folio, "El folio no puede ser nulo.");
         this.ocupantes = ocupantes != null ? new ArrayList<>(ocupantes) : new ArrayList<>();
         this.novedades = novedades != null ? new ArrayList<>(novedades) : new ArrayList<>();
@@ -107,10 +117,10 @@ public class Reserva {
     public static Reserva reconstruir(UUID id, CodigoReserva codigo, String apartamentoId, Titular titular, Estancia estancia,
                                       CanalOrigen canalOrigen, EstadoReserva estado, Cotizacion cotizacion,
                                       VersionPolitica versionPolitica, LocalDateTime fechaCreacion, boolean conMascota,
-                                      LocalTime horaEstimadaLlegada, Folio folio, List<Ocupante> ocupantes,
-                                      List<Novedad> novedades) {
+                                      LocalTime horaEstimadaLlegada, Cancelacion cancelacion, Folio folio,
+                                      List<Ocupante> ocupantes, List<Novedad> novedades) {
         return new Reserva(id, codigo, apartamentoId, titular, estancia, canalOrigen, estado, cotizacion,
-                versionPolitica, fechaCreacion, conMascota, horaEstimadaLlegada, folio, ocupantes, novedades);
+                versionPolitica, fechaCreacion, conMascota, horaEstimadaLlegada, cancelacion, folio, ocupantes, novedades);
     }
 
     /**
@@ -181,32 +191,137 @@ public class Reserva {
     }
 
     /**
-     * Cancela la reserva aplicando la política correspondiente según la antelación.
+     * Confirma la reserva cobrando el anticipo (F-06, 7.5). Reglas: solo desde PENDIENTE (RN-08), con la hora estimada
+     * de llegada registrada (RN-09), dentro del plazo de confirmación (RN-21) y pagando el anticipo que exija el
+     * alojamiento sobre el valor de la estancia. Si algo falla no cambia nada: primero se valida todo y después se actúa.
+     *
+     * @return el pago del anticipo, o null si el alojamiento no exige anticipo
      */
-    public void cancelar(PoliticaCancelacion politica) {
-        if (this.estado == EstadoReserva.FINALIZADA || this.estado == EstadoReserva.CANCELADA) {
-            throw new ReglaDominioException("No se puede cancelar una reserva que ya está " + this.estado);
+    public Pago confirmarConAnticipo(PoliticaAnticipo politicaAnticipo, PlazoConfirmacion plazoConfirmacion,
+                                     MedioPago medioPago, String referencia, LocalDateTime ahora) {
+        Objects.requireNonNull(politicaAnticipo, "La política de anticipo no puede ser nula.");
+        Objects.requireNonNull(plazoConfirmacion, "El plazo de confirmación no puede ser nulo.");
+        Objects.requireNonNull(ahora, "El momento de la confirmación no puede ser nulo.");
+
+        if (!this.estado.puedeTransitarA(EstadoReserva.CONFIRMADA)) {
+            throw new ReglaDominioException("RN-08: solo se pueden confirmar reservas en estado PENDIENTE (estado actual: "
+                    + this.estado + ").");
+        }
+        if (this.horaEstimadaLlegada == null) {
+            throw new ReglaDominioException("RN-09: la reserva debe registrar la hora estimada de llegada antes de confirmarse.");
+        }
+        if (plazoConfirmacion.haVencido(this.fechaCreacion, ahora)) {
+            throw new ReglaDominioException("RN-21: el plazo de confirmación de " + plazoConfirmacion.horas()
+                    + " horas venció el " + this.fechaCreacion.plusHours(plazoConfirmacion.horas()) + ".");
+        }
+        Dinero anticipo = politicaAnticipo.calcularAnticipo(this.cotizacion.valorTotal());
+        if (!anticipo.esCero() && medioPago == null) {
+            throw new ReglaDominioException("Para confirmar hay que pagar el anticipo de " + anticipo.monto()
+                    + " COP: indique el medio de pago.");
         }
 
-        if (politica != null) {
-            // 1. Calcular las horas de antelación hasta la fecha de entrada
-            long horasAntelacion = java.time.temporal.ChronoUnit.HOURS.between(
-                    java.time.LocalDateTime.now(),
-                    this.estancia.entrada().atStartOfDay()
-            );
+        Pago pagoAnticipo = anticipo.esCero() ? null : this.folio.registrarPago(anticipo, medioPago, referencia, ahora.toLocalDate());
+        this.estado = EstadoReserva.CONFIRMADA;
+        return pagoAnticipo;
+    }
 
-            // 2. Obtener el porcentaje de retención y calcular el valor del cargo por penalidad
-            BigDecimal porcentaje = politica.retencionAplicable(Math.max(0, horasAntelacion));
-            Dinero penalizacion = this.cotizacion.valorTotal().multiplicar(porcentaje);
-
-            // 3. Si la penalización es mayor a cero, registrar el cargo
-            if (penalizacion.esMayorQue(Dinero.cero())) {
-                Cargo cargoPenalizacion = Cargo.crear(TipoCargo.PENALIDAD, penalizacion);
-                this.folio.agregarCargo(cargoPenalizacion);
-            }
+    /**
+     * Cancela la reserva. La retención se calcula sobre lo que el huésped ya pagó (el anticipo) con la versión de la
+     * política CONGELADA en la reserva (RN-13), según la antelación entre ahora y el inicio del día de entrada. Dinero
+     * no admite negativos, así que la devolución no se modela como un cargo inverso: queda registrada en la cancelación.
+     * Libera las noches de inmediato (RN-12), porque una reserva CANCELADA deja de ser activa.
+     */
+    public Cancelacion cancelar(PoliticaCancelacion politica, String motivo, LocalDateTime ahora) {
+        Objects.requireNonNull(politica, "La política de cancelación no puede ser nula.");
+        Objects.requireNonNull(ahora, "El momento de la cancelación no puede ser nulo.");
+        if (motivo == null || motivo.isBlank()) {
+            throw new ReglaDominioException("El motivo de la cancelación es obligatorio.");
+        }
+        if (!this.estado.puedeTransitarA(EstadoReserva.CANCELADA)) {
+            throw new ReglaDominioException("RN-08: no se puede cancelar una reserva en estado " + this.estado + ".");
+        }
+        if (!politica.numeroVersion().equals(this.versionPolitica)) {
+            throw new ReglaDominioException("RN-13: la cancelación debe usar la versión " + this.versionPolitica.numero()
+                    + " de la política, que es la congelada en esta reserva.");
         }
 
+        long horasDeAntelacion = ChronoUnit.HOURS.between(ahora, this.estancia.entrada().atStartOfDay());
+        BigDecimal porcentajeRetenido = politica.retencionAplicable(Math.max(0, horasDeAntelacion));
+        Dinero pagado = this.folio.calcularTotalPagos();
+        Dinero retenido = pagado.multiplicar(porcentajeRetenido);
+        Dinero devuelto = pagado.restar(retenido);
+
+        this.cancelacion = new Cancelacion(motivo.trim(), ahora, retenido, devuelto);
         this.estado = EstadoReserva.CANCELADA;
+        return this.cancelacion;
+    }
+
+    /**
+     * RN-15: registra un pago contra el folio. Solo mientras la reserva sigue viva y ya confirmada (CONFIRMADA o
+     * EN_CURSO): el anticipo de una PENDIENTE se paga al confirmar, y en las terminales el folio ya no se mueve.
+     * El folio rechaza pagar más que el saldo pendiente.
+     */
+    public Pago registrarPago(Dinero monto, MedioPago medioPago, String referencia, LocalDate fecha) {
+        if (this.estado != EstadoReserva.CONFIRMADA && this.estado != EstadoReserva.EN_CURSO) {
+            throw new ReglaDominioException("RN-15: solo se registran pagos en reservas CONFIRMADA o EN_CURSO (estado actual: "
+                    + this.estado + ").");
+        }
+        return this.folio.registrarPago(monto, medioPago, referencia, fecha);
+    }
+
+    /** RN-12: una reserva CONFIRMADA cuyo titular no llegó antes de la hora límite del día de entrada es un no-show. */
+    public boolean haPasadoHoraLimiteNoShow(HoraLimiteNoShow horaLimite, LocalDateTime ahora) {
+        return this.estado == EstadoReserva.CONFIRMADA && horaLimite.permiteDeclarar(this.estancia.entrada(), ahora);
+    }
+
+    /**
+     * RN-12 y RN-13: declara el no-show, libera las noches y retiene el anticipo según la versión de política CONGELADA
+     * en la reserva (el tramo de 0 horas de antelación, que en la Ficha retiene el 100%). Solo si ya pasó la hora límite.
+     */
+    public Cancelacion declararNoShow(HoraLimiteNoShow horaLimite, PoliticaCancelacion politica, LocalDateTime ahora) {
+        Objects.requireNonNull(horaLimite, "La hora límite de no-show no puede ser nula.");
+        Objects.requireNonNull(politica, "La política de cancelación no puede ser nula.");
+        Objects.requireNonNull(ahora, "El momento de la declaración no puede ser nulo.");
+        if (!this.estado.puedeTransitarA(EstadoReserva.NO_SHOW)) {
+            throw new ReglaDominioException("RN-08: solo se puede declarar no-show en una reserva CONFIRMADA (estado actual: "
+                    + this.estado + ").");
+        }
+        if (!horaLimite.permiteDeclarar(this.estancia.entrada(), ahora)) {
+            throw new ReglaDominioException("RN-12: todavía no ha pasado la hora límite de no-show (" + horaLimite.hora()
+                    + " del " + this.estancia.entrada() + ").");
+        }
+        if (!politica.numeroVersion().equals(this.versionPolitica)) {
+            throw new ReglaDominioException("RN-13: el no-show debe usar la versión " + this.versionPolitica.numero()
+                    + " de la política, que es la congelada en esta reserva.");
+        }
+
+        BigDecimal porcentajeRetenido = politica.retencionAplicable(0);
+        Dinero pagado = this.folio.calcularTotalPagos();
+        Dinero retenido = pagado.multiplicar(porcentajeRetenido);
+        Dinero devuelto = pagado.restar(retenido);
+
+        this.cancelacion = new Cancelacion("NO_SHOW: el titular no se presentó antes de las " + horaLimite.hora()
+                + " del día de entrada", ahora, retenido, devuelto);
+        this.estado = EstadoReserva.NO_SHOW;
+        return this.cancelacion;
+    }
+
+    /** RN-21: una reserva PENDIENTE que supera el plazo de confirmación debe cancelarse automáticamente. */
+    public boolean haVencidoPlazoConfirmacion(PlazoConfirmacion plazoConfirmacion, LocalDateTime ahora) {
+        return this.estado == EstadoReserva.PENDIENTE && plazoConfirmacion.haVencido(this.fechaCreacion, ahora);
+    }
+
+    /** RN-21 y RN-12: cancela la reserva vencida y libera sus noches. Nada se había pagado, así que no hay retención. */
+    public Cancelacion cancelarPorVencimiento(PlazoConfirmacion plazoConfirmacion, LocalDateTime ahora) {
+        if (!haVencidoPlazoConfirmacion(plazoConfirmacion, ahora)) {
+            throw new ReglaDominioException("RN-21: la reserva " + this.codigo.valor()
+                    + " no está PENDIENTE con el plazo de confirmación vencido.");
+        }
+        Dinero pagado = this.folio.calcularTotalPagos();
+        this.cancelacion = new Cancelacion("RN-21: plazo de confirmación de " + plazoConfirmacion.horas() + " horas vencido",
+                ahora, Dinero.cero(), pagado);
+        this.estado = EstadoReserva.CANCELADA;
+        return this.cancelacion;
     }
 
     /**
@@ -269,6 +384,11 @@ public class Reserva {
 
     public boolean isConMascota() {
         return conMascota;
+    }
+
+    /** Presente solo si la reserva fue cancelada. */
+    public Optional<Cancelacion> getCancelacion() {
+        return Optional.ofNullable(cancelacion);
     }
 
     /** Null mientras no se haya registrado (RN-09). */

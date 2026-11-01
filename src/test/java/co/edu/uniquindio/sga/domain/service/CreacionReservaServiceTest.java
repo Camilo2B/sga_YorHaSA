@@ -196,7 +196,7 @@ class CreacionReservaServiceTest {
     @DisplayName("Creación: RN-12 una reserva cancelada libera sus noches")
     void unaReservaCanceladaLiberaLasNoches() {
         Reserva existente = servicio.crear(alojamiento, apartamento, solicitudBasica(), AHORA);
-        existente.cancelar(null);
+        existente.cancelar(alojamiento.politicaVigente(AHORA.toLocalDate()), "Cancelada por el huésped", AHORA);
         reservaRepository.guardar(existente);
 
         assertEquals(EstadoReserva.PENDIENTE, servicio.crear(alojamiento, apartamento, solicitudBasica(), AHORA).getEstado());

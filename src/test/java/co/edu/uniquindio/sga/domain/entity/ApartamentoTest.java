@@ -32,6 +32,6 @@ class ApartamentoTest {
                 List.of(new Dormitorio("Principal", "Doble")), EstadoOperativo.FUERA_DE_SERVICIO);
 
         // Act & Assert (FUERA_DE_SERVICIO no permite transición a OCUPADO)
-        assertThrows(ReglaDominioException.class, () -> apt.cambiarEstadoOperativo(EstadoOperativo.OCUPADO));
+        assertThrows(ReglaDominioException.class, apt::registrarOcupacion);
     }
 }

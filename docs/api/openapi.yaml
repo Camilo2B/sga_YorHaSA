@@ -101,7 +101,10 @@ paths:
 
   /api/reservas/{codigo}/confirmar:
     put:
-      summary: Confirmar una reserva pendiente con su anticipo (ConfirmarReservaUseCase)
+      summary: Confirmar una reserva pendiente cobrando el anticipo (ConfirmarReservaUseCase)
+      description: >-
+        PENDIENTE -> CONFIRMADA (RN-08). Exige la hora estimada de llegada (RN-09), que todavía esté dentro del plazo de
+        confirmación (RN-21) y cobra el anticipo configurado (50% del valor de la estancia en la Ficha). El cuerpo es opcional.
       operationId: confirmarReserva
       parameters:
         - name: codigo
@@ -109,17 +112,34 @@ paths:
           required: true
           schema:
             type: string
+            example: RES-2026-00001
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmarReservaRequest'
       responses:
         '200':
-          description: Reserva confirmada correctamente.
+          description: Reserva confirmada, con el anticipo registrado en su folio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaDetalleResponse'
+        '400':
+          description: La forma del mensaje es inválida (medio de pago inexistente, hora con formato incorrecto).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Reserva no encontrada.
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Transición de estado inválida o plazo de confirmación vencido.
+          description: "Regla de negocio violada: no está PENDIENTE (RN-08), falta la hora estimada de llegada (RN-09), el plazo de confirmación venció (RN-21), falta el medio de pago del anticipo o la hora ya estaba registrada."
           content:
             application/json:
               schema:
@@ -127,7 +147,10 @@ paths:
 
   /api/reservas/{codigo}/cancelar:
     put:
-      summary: Cancelar una reserva aplicando política de retención (CancelarReservaUseCase)
+      summary: Cancelar una reserva aplicando la política de retención (CancelarReservaUseCase)
+      description: >-
+        Solo desde PENDIENTE o CONFIRMADA (RN-08). La retención se calcula sobre el anticipo pagado, con la versión de la
+        política congelada en la reserva (RN-13) y la antelación hasta el inicio del día de entrada. Libera las noches (RN-12).
       operationId: cancelarReserva
       parameters:
         - name: codigo
@@ -135,17 +158,34 @@ paths:
           required: true
           schema:
             type: string
+            example: RES-2026-00001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelarReservaRequest'
       responses:
         '200':
-          description: Reserva cancelada exitosamente y disponibilidad liberada.
+          description: Reserva cancelada, con el motivo y el reparto del anticipo entre retenido y devuelto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaDetalleResponse'
+        '400':
+          description: El motivo falta o no tiene entre 5 y 300 caracteres.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Reserva no encontrada.
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: No se puede cancelar una reserva finalizada o en curso.
+          description: "No se puede cancelar: la reserva está EN_CURSO, FINALIZADA, CANCELADA o NO_SHOW (RN-08)."
           content:
             application/json:
               schema:
@@ -153,7 +193,10 @@ paths:
 
   /api/reservas/{codigo}/registrar-llegada:
     put:
-      summary: Registrar la llegada/check-in del grupo (RegistrarLlegadaUseCase)
+      summary: Registrar la llegada del grupo, check-in (RegistrarLlegadaUseCase)
+      description: >-
+        La reserva pasa a EN_CURSO y el apartamento a OCUPADO. Solo sobre una reserva CONFIRMADA, desde la fecha de
+        entrada (RN-10) y con el apartamento PREPARADO (RN-11).
       operationId: registrarLlegada
       parameters:
         - name: codigo
@@ -161,17 +204,22 @@ paths:
           required: true
           schema:
             type: string
+            example: RES-2026-00001
       responses:
         '200':
-          description: Registro realizado. La reserva pasa a EN_CURSO y el apartamento a OCUPADO.
+          description: Llegada registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaDetalleResponse'
         '404':
-          description: Reserva no encontrada.
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: El apartamento no está en estado PREPARADO o no es la fecha de entrada.
+          description: "No procede el registro: la reserva no está CONFIRMADA o no es la fecha de entrada (RN-10), o el apartamento no está PREPARADO (RN-11)."
           content:
             application/json:
               schema:
@@ -179,7 +227,9 @@ paths:
 
   /api/reservas/{codigo}/registrar-salida:
     put:
-      summary: Registrar la salida/check-out del grupo (RegistrarSalidaUseCase)
+      summary: Registrar la salida del grupo, check-out (RegistrarSalidaUseCase)
+      description: >-
+        La reserva pasa a FINALIZADA y el apartamento a PENDIENTE_PREPARACION. Solo con el folio en paz y salvo (RN-17).
       operationId: registrarSalida
       parameters:
         - name: codigo
@@ -187,17 +237,22 @@ paths:
           required: true
           schema:
             type: string
+            example: RES-2026-00001
       responses:
         '200':
-          description: Salida registrada. La reserva pasa a FINALIZADA.
+          description: Salida registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaDetalleResponse'
         '404':
-          description: Reserva no encontrada.
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: El folio tiene saldo pendiente sin autorización del administrador.
+          description: La reserva no está EN_CURSO o el folio tiene saldo pendiente (RN-17).
           content:
             application/json:
               schema:
@@ -205,7 +260,10 @@ paths:
 
   /api/reservas/{codigo}/no-show:
     put:
-      summary: Declarar no-show por ausencia del titular tras la hora límite (DeclararNoShowUseCase)
+      summary: Declarar el no-show de una reserva (DeclararNoShowUseCase)
+      description: >-
+        Solo una reserva CONFIRMADA y pasada la hora límite del día de entrada (RN-12). Libera las noches y retiene el
+        anticipo según la política congelada en la reserva (RN-13). También se declara solo, de forma automática.
       operationId: declararNoShow
       parameters:
         - name: codigo
@@ -213,17 +271,164 @@ paths:
           required: true
           schema:
             type: string
+            example: RES-2026-00001
       responses:
         '200':
-          description: Reserva marcada como NO_SHOW y retención del 100% del anticipo aplicada.
+          description: Reserva en NO_SHOW, con el reparto del anticipo entre retenido y devuelto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaDetalleResponse'
         '404':
-          description: Reserva no encontrada.
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Transición inválida para el estado actual de la reserva.
+          description: La reserva no está CONFIRMADA o todavía no pasó la hora límite de no-show.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reservas/{codigo}/folio:
+    get:
+      summary: Consultar el folio de una reserva (ConsultarFolioUseCase)
+      description: Cargos, pagos y saldo pendiente (RN-15). El saldo es la diferencia entre cargos y pagos.
+      operationId: consultarFolio
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: RES-2026-00001
+      responses:
+        '200':
+          description: Folio de la reserva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolioResponse'
+        '404':
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reservas/{codigo}/folio/pagos:
+    post:
+      summary: Registrar un pago en el folio (RegistrarPagoUseCase)
+      description: >-
+        Crea un movimiento en el folio (RN-15). Solo en reservas CONFIRMADA o EN_CURSO, y nunca por más que el saldo
+        pendiente. Los movimientos no se modifican ni se eliminan (RN-16), por eso no hay PUT ni DELETE.
+      operationId: registrarPago
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: RES-2026-00001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarPagoRequest'
+      responses:
+        '201':
+          description: Pago registrado; responde con el folio actualizado.
+          headers:
+            Location:
+              description: URI del folio de la reserva.
+              schema:
+                type: string
+                example: /api/reservas/RES-2026-00001/folio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolioResponse'
+        '400':
+          description: La forma del mensaje es inválida (medio de pago inexistente, valor faltante o menor o igual a cero).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reserva no encontrada (también si el código no tiene el formato RES-AAAA-NNNNN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: La reserva no admite pagos (no está CONFIRMADA ni EN_CURSO) o el pago supera el saldo pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/iniciar-preparacion:
+    put:
+      summary: El personal de servicio empieza a preparar el apartamento (IniciarPreparacionApartamentoUseCase)
+      description: PENDIENTE_PREPARACION a EN_PREPARACION (7.6).
+      operationId: iniciarPreparacionApartamento
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+      responses:
+        '200':
+          description: Apartamento en preparación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartamentoResponse'
+        '404':
+          description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El apartamento no está PENDIENTE_PREPARACION.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/marcar-preparado:
+    put:
+      summary: Dejar el apartamento listo para el siguiente grupo (MarcarApartamentoPreparadoUseCase)
+      description: EN_PREPARACION a PREPARADO (7.6).
+      operationId: marcarApartamentoPreparado
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+      responses:
+        '200':
+          description: Apartamento preparado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartamentoResponse'
+        '404':
+          description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El apartamento no está EN_PREPARACION.
           content:
             application/json:
               schema:
@@ -1088,6 +1293,33 @@ components:
           type: string
           example: COP
 
+    ConfirmarReservaRequest:
+      type: object
+      description: Todo el cuerpo es opcional.
+      properties:
+        horaEstimadaLlegada:
+          type: string
+          example: "15:30"
+          description: Solo si la reserva se creó sin ella (RN-09). Entre las 22:00 y las 05:00 agrega el recargo de RN-Propia-02.
+        medioPago:
+          type: string
+          enum: [TRANSFERENCIA, TARJETA, EFECTIVO]
+          description: Medio con el que se paga el anticipo; obligatorio si el alojamiento exige anticipo.
+        referencia:
+          type: string
+          maxLength: 60
+
+    CancelarReservaRequest:
+      type: object
+      required:
+        - motivo
+      properties:
+        motivo:
+          type: string
+          minLength: 5
+          maxLength: 300
+          example: El huésped cambió de planes
+
     OcupanteResponse:
       type: object
       properties:
@@ -1161,6 +1393,91 @@ components:
         motivoCancelacion:
           type: string
           nullable: true
+        retenidoPorCancelacion:
+          type: integer
+          format: int64
+          nullable: true
+          description: Del anticipo pagado, lo que se retiene según la política congelada (RN-13). Solo si está cancelada.
+        devueltoPorCancelacion:
+          type: integer
+          format: int64
+          nullable: true
+          description: Del anticipo pagado, lo que se devuelve. Solo si está cancelada.
+
+    RegistrarPagoRequest:
+      type: object
+      required:
+        - medioPago
+        - valor
+      properties:
+        medioPago:
+          type: string
+          enum: [TRANSFERENCIA, TARJETA, EFECTIVO]
+        valor:
+          type: number
+          description: Pesos colombianos. Mayor a cero y no superior al saldo pendiente.
+          example: 100000
+        referencia:
+          type: string
+          maxLength: 60
+
+    CargoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [ALOJAMIENTO, SERVICIO_ADICIONAL, AJUSTE_POR_MODIFICACION, PENALIDAD]
+        valor:
+          type: integer
+          format: int64
+
+    PagoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        medio:
+          type: string
+          enum: [TRANSFERENCIA, TARJETA, EFECTIVO]
+        fecha:
+          type: string
+          format: date
+        valor:
+          type: integer
+          format: int64
+
+    FolioResponse:
+      type: object
+      description: Valores en pesos colombianos sin decimales.
+      properties:
+        codigoReserva:
+          type: string
+          example: RES-2026-00001
+        cargos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CargoResponse'
+        pagos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PagoResponse'
+        totalCargos:
+          type: integer
+          format: int64
+        totalPagos:
+          type: integer
+          format: int64
+        saldoPendiente:
+          type: integer
+          format: int64
+          description: totalCargos menos totalPagos (RN-15); nunca es negativo.
+        moneda:
+          type: string
+          example: COP
 
     ErrorResponse:
       type: object

@@ -50,7 +50,12 @@ public class Folio {
     /**
      * Registra un pago recibido y lo asocia al folio.
      */
+    /** Igual que el siguiente, con la fecha de hoy según el reloj del sistema. Prefiera la versión con fecha explícita. */
     public Pago registrarPago(Dinero monto, MedioPago medioPago, String referencia) {
+        return registrarPago(monto, medioPago, referencia, LocalDate.now());
+    }
+
+    public Pago registrarPago(Dinero monto, MedioPago medioPago, String referencia, LocalDate fecha) {
         Objects.requireNonNull(monto, "El monto del pago no puede ser nulo.");
         Objects.requireNonNull(medioPago, "El medio de pago no puede ser nulo.");
 
@@ -58,7 +63,14 @@ public class Folio {
             throw new ReglaDominioException("El monto del pago debe ser mayor a cero.");
         }
 
-        Pago nuevoPago = Pago.crear(medioPago, LocalDate.now(), monto);
+        // RN-15: el saldo es cargos menos pagos y nunca queda negativo (Dinero no admite negativos): no se paga de más.
+        Dinero saldoPendiente = calcularSaldoPendiente();
+        if (monto.esMayorQue(saldoPendiente)) {
+            throw new ReglaDominioException("El pago de " + monto.monto() + " supera el saldo pendiente del folio ("
+                    + saldoPendiente.monto() + ").");
+        }
+
+        Pago nuevoPago = Pago.crear(medioPago, fecha, monto);
         this.pagos.add(nuevoPago);
         return nuevoPago;
     }

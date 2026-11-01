@@ -7,6 +7,7 @@ import co.edu.uniquindio.sga.domain.entity.Ocupante;
 import co.edu.uniquindio.sga.domain.entity.Pago;
 import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.entity.Titular;
+import co.edu.uniquindio.sga.domain.valueobject.Cancelacion;
 import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Cotizacion;
 import co.edu.uniquindio.sga.domain.valueobject.DetalleNoche;
@@ -47,6 +48,8 @@ public class ReservaPersistenceMapper {
                 reserva.getHoraEstimadaLlegada(),
                 reserva.getFolio().getId());
 
+        reserva.getCancelacion().ifPresent(c -> entity.asignarCancelacion(
+                c.motivo(), c.fecha(), c.retenido().monto(), c.devuelto().monto()));
         reserva.getCotizacion().desglosePorNoche().forEach(d -> entity.getDetalleNoches().add(
                 new DetalleNocheEmbeddable(d.fecha(), d.nombreTemporada(), d.tarifaAplicada().monto(), d.ocupantesFacturables())));
         reserva.getOcupantes().forEach(o -> entity.getOcupantes().add(toEmbeddable(o)));
@@ -80,6 +83,11 @@ public class ReservaPersistenceMapper {
                 .map(n -> Novedad.reconstruir(n.id(), n.fecha(), n.autor(), n.descripcion(), n.gravedad()))
                 .toList();
 
+        Cancelacion cancelacion = entity.getMotivoCancelacion() == null
+                ? null
+                : new Cancelacion(entity.getMotivoCancelacion(), entity.getFechaCancelacion(),
+                        new Dinero(entity.getMontoRetenido()), new Dinero(entity.getMontoDevuelto()));
+
         return Reserva.reconstruir(
                 entity.getId(),
                 new CodigoReserva(entity.getCodigo()),
@@ -93,6 +101,7 @@ public class ReservaPersistenceMapper {
                 entity.getFechaCreacion(),
                 entity.isConMascota(),
                 entity.getHoraEstimadaLlegada(),
+                cancelacion,
                 new Folio(entity.getFolioId(), entity.getId(), cargos, pagos),
                 ocupantes,
                 novedades);

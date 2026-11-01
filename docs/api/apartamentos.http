@@ -536,3 +536,312 @@ GET http://localhost:8080/api/reservas/RES-2026-99999
 
 ### 52) Código con formato inválido -> 404 Not Found
 GET http://localhost:8080/api/reservas/ABC
+
+### ---------------- Confirmar y cancelar reservas ----------------
+### (Las fechas son de 2026: las pruebas dependen de que la fecha de entrada no haya pasado y de la antelación de cada cancelación.
+###  La cancelación automática por plazo vencido, RN-21, no se puede probar aquí porque exige esperar 24 horas: la cubren las pruebas unitarias.)
+
+### 53) Reserva con hora de llegada diurna (ATK-002, Media: 2 noches x 135.000 = valorTotal 270000). Guarda el código.
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-002",
+  "fechaEntrada": "2026-11-20",
+  "fechaSalida": "2026-11-22",
+  "canalOrigen": "PORTAL",
+  "horaEstimadaLlegada": "15:00",
+  "titular": { "documento": "1000000100", "nombre": "Huésped Confirmado", "fechaNacimiento": "1985-03-12" },
+  "ocupantes": []
+}
+
+> {% client.global.set("codigoConfirmable", response.body.codigo); %}
+
+### 54) Confirmar sin medio de pago: el anticipo del 50% (135.000) lo exige -> 409 Conflict
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/confirmar
+
+### 55) Confirmar pagando el anticipo -> 200 OK, estado CONFIRMADA, anticipo de 135000 en el folio
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/confirmar
+Content-Type: application/json
+
+{
+  "medioPago": "TRANSFERENCIA",
+  "referencia": "TRX-0001"
+}
+
+### 56) Confirmar de nuevo -> 409 Conflict (RN-08: ya no está PENDIENTE)
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/confirmar
+Content-Type: application/json
+
+{
+  "medioPago": "TRANSFERENCIA"
+}
+
+### 57) La reserva de la prueba 37 se creó sin hora de llegada: no se puede confirmar -> 409 Conflict (RN-09)
+PUT http://localhost:8080/api/reservas/{{codigoReserva}}/confirmar
+Content-Type: application/json
+
+{
+  "medioPago": "TARJETA"
+}
+
+### 58) Confirmarla enviando la hora (23:30, recargo nocturno) y el anticipo -> 200 OK
+###     Anticipo: 50% de 1.035.000 = 517500 pagados; totalCargosFolio = 1065000 (1.035.000 + 30.000 de recargo)
+PUT http://localhost:8080/api/reservas/{{codigoReserva}}/confirmar
+Content-Type: application/json
+
+{
+  "horaEstimadaLlegada": "23:30",
+  "medioPago": "TARJETA",
+  "referencia": "TC-7788"
+}
+
+### 59) Cancelarla con más de 7 días de antelación -> 200 OK, CANCELADA, retenidoPorCancelacion 0 y devueltoPorCancelacion 517500
+###     (si se ejecuta con menos de 7 días antes del 13 de diciembre de 2026, la retención cambia según la política v1)
+PUT http://localhost:8080/api/reservas/{{codigoReserva}}/cancelar
+Content-Type: application/json
+
+{
+  "motivo": "El huésped cambió de planes"
+}
+
+### 60) Cancelar de nuevo -> 409 Conflict (RN-08)
+PUT http://localhost:8080/api/reservas/{{codigoReserva}}/cancelar
+Content-Type: application/json
+
+{
+  "motivo": "Otra vez"
+}
+
+### 61) Cancelar sin motivo -> 400 Bad Request
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/cancelar
+Content-Type: application/json
+
+{
+  "motivo": ""
+}
+
+### 62) Cancelar una reserva que no existe -> 404 Not Found
+PUT http://localhost:8080/api/reservas/RES-2026-99999/cancelar
+Content-Type: application/json
+
+{
+  "motivo": "No existe esta reserva"
+}
+
+### 63) Cancelar con código mal formado -> 404 Not Found
+PUT http://localhost:8080/api/reservas/ABC/cancelar
+Content-Type: application/json
+
+{
+  "motivo": "Código inválido"
+}
+
+### 64) RN-12: la reserva cancelada liberó sus noches; las mismas fechas de la prueba 37 ya se pueden reservar -> 201 Created
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-13",
+  "fechaSalida": "2026-12-18",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1000000200", "nombre": "Nueva Reserva", "fechaNacimiento": "1991-07-07" },
+  "ocupantes": []
+}
+
+### 65) Cancelar la reserva confirmada de la prueba 53 -> 200 OK (con más de 7 días de antelación se devuelve el 100% del anticipo: 135000)
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/cancelar
+Content-Type: application/json
+
+{
+  "motivo": "Cambio de agenda del huésped"
+}
+
+### ---------------- Entrada, salida, folio y no-show ----------------
+### El registro de llegada solo procede desde la fecha de entrada (RN-10), así que estas pruebas calculan las fechas
+### con un script previo (cliente HTTP de IntelliJ): "hoy", "manana" y "pasadoManana". Ejecutar en orden, con la app recién arrancada.
+
+### 66) Reserva que entra HOY en ATK-001, 1 noche, con hora de llegada diurna -> 201 Created
+< {%
+    const f = d => { const x = new Date(); x.setDate(x.getDate() + d);
+        return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+    request.variables.set("hoy", f(0)); request.variables.set("manana", f(1)); request.variables.set("pasadoManana", f(2));
+%}
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "{{hoy}}",
+  "fechaSalida": "{{manana}}",
+  "canalOrigen": "DIRECTO",
+  "horaEstimadaLlegada": "15:00",
+  "titular": { "documento": "1000000300", "nombre": "Huésped de Hoy", "fechaNacimiento": "1988-02-02" },
+  "ocupantes": []
+}
+
+> {% client.global.set("codigoHoy", response.body.codigo); %}
+
+### 67) Registrar la llegada sin haber confirmado -> 409 Conflict (RN-10: debe estar CONFIRMADA)
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-llegada
+
+### 68) Confirmar pagando el anticipo -> 200 OK
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/confirmar
+Content-Type: application/json
+
+{
+  "medioPago": "EFECTIVO"
+}
+
+### 69) Registrar la salida sin haber llegado -> 409 Conflict (no está EN_CURSO)
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-salida
+
+### 70) Registrar la llegada -> 200 OK: reserva EN_CURSO y el apartamento OCUPADO
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-llegada
+
+### 71) El apartamento quedó OCUPADO -> 200 OK (estadoOperativo OCUPADO)
+GET http://localhost:8080/api/apartamentos/ATK-001
+
+### 72) Registrar la llegada otra vez -> 409 Conflict (ya está EN_CURSO)
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-llegada
+
+### 73) La salida con saldo pendiente -> 409 Conflict (RN-17: el anticipo cubre solo el 50%)
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-salida
+
+### 74) Consultar el folio -> 200 OK. Guarda el saldo pendiente para pagarlo
+GET http://localhost:8080/api/reservas/{{codigoHoy}}/folio
+
+> {% client.global.set("saldoFolio", response.body.saldoPendiente); %}
+
+### 75) Un pago por más que el saldo -> 409 Conflict (RN-15: no se paga de más)
+POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Content-Type: application/json
+
+{
+  "medioPago": "EFECTIVO",
+  "valor": 99999999
+}
+
+### 76) Un pago en cero -> 400 Bad Request
+POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Content-Type: application/json
+
+{
+  "medioPago": "EFECTIVO",
+  "valor": 0
+}
+
+### 77) Pagar el saldo exacto -> 201 Created + Location: /api/reservas/{codigo}/folio, saldoPendiente 0
+POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Content-Type: application/json
+
+{
+  "medioPago": "TRANSFERENCIA",
+  "valor": {{saldoFolio}},
+  "referencia": "SALDO-001"
+}
+
+### 78) Registrar la salida con el folio en paz y salvo -> 200 OK: FINALIZADA y apartamento PENDIENTE_PREPARACION
+PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-salida
+
+### 79) Un pago en una reserva ya finalizada -> 409 Conflict
+POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Content-Type: application/json
+
+{
+  "medioPago": "EFECTIVO",
+  "valor": 1000
+}
+
+### 80) Folio de una reserva que no existe -> 404 Not Found
+GET http://localhost:8080/api/reservas/RES-2026-99999/folio
+
+### 81) Otra reserva que entra hoy en ATK-001 (la anterior ya finalizó y sus noches están libres) -> 201 Created
+< {%
+    const f = d => { const x = new Date(); x.setDate(x.getDate() + d);
+        return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+    request.variables.set("hoy", f(0)); request.variables.set("manana", f(1)); request.variables.set("pasadoManana", f(2));
+%}
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "{{hoy}}",
+  "fechaSalida": "{{manana}}",
+  "canalOrigen": "DIRECTO",
+  "horaEstimadaLlegada": "16:00",
+  "titular": { "documento": "1000000301", "nombre": "Segundo Huésped", "fechaNacimiento": "1990-03-03" },
+  "ocupantes": []
+}
+
+> {% client.global.set("codigoSegundo", response.body.codigo); %}
+
+### 82) Confirmarla -> 200 OK
+PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/confirmar
+Content-Type: application/json
+
+{
+  "medioPago": "EFECTIVO"
+}
+
+### 83) Registrar la llegada con el apartamento sin preparar -> 409 Conflict (RN-11: está PENDIENTE_PREPARACION)
+PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/registrar-llegada
+
+### 84) Marcarlo preparado sin haber iniciado la preparación -> 409 Conflict
+PUT http://localhost:8080/api/apartamentos/ATK-001/marcar-preparado
+
+### 85) El personal empieza a prepararlo -> 200 OK (EN_PREPARACION)
+PUT http://localhost:8080/api/apartamentos/ATK-001/iniciar-preparacion
+
+### 86) Todavía en preparación: la llegada sigue siendo 409 Conflict (RN-11)
+PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/registrar-llegada
+
+### 87) Lo deja listo -> 200 OK (PREPARADO)
+PUT http://localhost:8080/api/apartamentos/ATK-001/marcar-preparado
+
+### 88) Ahora sí se registra la llegada -> 200 OK
+PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/registrar-llegada
+
+### 89) Iniciar la preparación de un apartamento que no existe -> 404 Not Found
+PUT http://localhost:8080/api/apartamentos/NO-EXISTE/iniciar-preparacion
+
+### 90) Reserva que entra MAÑANA en ATK-002, confirmada: todavía no puede ser no-show -> 409 Conflict (RN-12)
+###     (el no-show real se produce pasadas las 9 pm del día de entrada, solo o con este endpoint; la prueba unitaria lo cubre)
+< {%
+    const f = d => { const x = new Date(); x.setDate(x.getDate() + d);
+        return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+    request.variables.set("hoy", f(0)); request.variables.set("manana", f(1)); request.variables.set("pasadoManana", f(2));
+%}
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-002",
+  "fechaEntrada": "{{manana}}",
+  "fechaSalida": "{{pasadoManana}}",
+  "canalOrigen": "PORTAL",
+  "horaEstimadaLlegada": "15:00",
+  "titular": { "documento": "1000000302", "nombre": "Huésped de Mañana", "fechaNacimiento": "1985-05-05" },
+  "ocupantes": []
+}
+
+> {% client.global.set("codigoManana", response.body.codigo); %}
+
+### 91) Confirmarla -> 200 OK
+PUT http://localhost:8080/api/reservas/{{codigoManana}}/confirmar
+Content-Type: application/json
+
+{
+  "medioPago": "TARJETA"
+}
+
+### 92) Declarar el no-show antes de la hora límite -> 409 Conflict (RN-12)
+PUT http://localhost:8080/api/reservas/{{codigoManana}}/no-show
+
+### 93) Declarar el no-show de una reserva PENDIENTE (la de la prueba 53 ya fue cancelada) -> 409 Conflict (RN-08)
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/no-show
+
+### 94) No-show de una reserva que no existe -> 404 Not Found
+PUT http://localhost:8080/api/reservas/RES-2026-99999/no-show

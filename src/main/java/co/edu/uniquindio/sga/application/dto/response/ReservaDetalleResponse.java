@@ -30,6 +30,8 @@ public record ReservaDetalleResponse(
         String moneda,                      // "COP"
         String versionPoliticaCancelacion,  // la congelada en la reserva (RN-22)
         LocalDate fechaCreacion,
-        String motivoCancelacion            // solo si la reserva fue cancelada
+        String motivoCancelacion,           // solo si la reserva fue cancelada
+        Long retenidoPorCancelacion,        // del anticipo pagado, lo que se retiene (RN-13); null si no está cancelada
+        Long devueltoPorCancelacion         // del anticipo pagado, lo que se devuelve; null si no está cancelada
 ) {
 }

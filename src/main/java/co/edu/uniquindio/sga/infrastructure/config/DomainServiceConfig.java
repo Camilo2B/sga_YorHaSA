@@ -6,6 +6,7 @@ import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
 import co.edu.uniquindio.sga.domain.service.CotizadorEstanciaService;
 import co.edu.uniquindio.sga.domain.service.CreacionReservaService;
 import co.edu.uniquindio.sga.domain.service.DisponibilidadApartamentoService;
+import co.edu.uniquindio.sga.domain.service.EntregaApartamentoService;
 import co.edu.uniquindio.sga.domain.service.RegistroApartamentoService;
 import co.edu.uniquindio.sga.domain.valueobject.DescuentoEstanciaProlongada;
 import co.edu.uniquindio.sga.domain.valueobject.Dinero;
@@ -84,5 +85,10 @@ public class DomainServiceConfig {
                                                          GeneradorCodigoReserva generadorCodigo,
                                                          RecargoLlegadaNocturna recargoLlegadaNocturna) {
         return new CreacionReservaService(disponibilidadService, cotizadorService, generadorCodigo, recargoLlegadaNocturna);
+    }
+
+    @Bean
+    public EntregaApartamentoService entregaApartamentoService() {
+        return new EntregaApartamentoService();
     }
 }

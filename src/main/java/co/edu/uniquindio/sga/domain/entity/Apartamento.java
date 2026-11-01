@@ -97,21 +97,44 @@ public final class Apartamento {
         return apartamento;
     }
 
-    /**
-     * 7.6: transición validada por el propio enum (ver EstadoOperativo);
-     * aquí no se repite la tabla de transiciones, solo se delega en ella.
-     * La restricción "FUERA_DE_SERVICIO solo por administrador" es una
-     * regla de AUTORIZACIÓN (quién puede invocar esto), no de dominio: el
-     * dominio no conoce roles, así que esa verificación vive en la capa de
-     * aplicación, no aquí.
-     */
-    public void cambiarEstadoOperativo(EstadoOperativo nuevo) {
-        Objects.requireNonNull(nuevo, "El nuevo estado operativo no puede ser nulo");
-        if (!this.estadoOperativo.puedeTransitarA(nuevo)) {
+    // ------------------------------------------------------------------------------------------------------------
+    // 7.6: transiciones del estado operativo. Cada una es una operación de negocio con nombre propio (no hay un
+    // "cambiarEstado" genérico) y la validez de la transición la decide el propio enum EstadoOperativo.
+    // "FUERA_DE_SERVICIO solo por administrador" es una regla de AUTORIZACIÓN (quién puede invocarlo), no de dominio:
+    // el dominio no conoce roles, así que esa verificación vive en la capa de seguridad.
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** Un grupo ocupa el apartamento (check-in): PREPARADO -> OCUPADO. */
+    public void registrarOcupacion() {
+        transitarA(EstadoOperativo.OCUPADO);
+    }
+
+    /** El grupo desocupa el apartamento (check-out): OCUPADO -> PENDIENTE_PREPARACION. */
+    public void registrarDesocupacion() {
+        transitarA(EstadoOperativo.PENDIENTE_PREPARACION);
+    }
+
+    /** El personal de servicio empieza a prepararlo: PENDIENTE_PREPARACION -> EN_PREPARACION. */
+    public void iniciarPreparacion() {
+        transitarA(EstadoOperativo.EN_PREPARACION);
+    }
+
+    /** El personal de servicio lo deja listo para el siguiente grupo: EN_PREPARACION -> PREPARADO. */
+    public void marcarPreparado() {
+        transitarA(EstadoOperativo.PREPARADO);
+    }
+
+    /** Lo saca de servicio. No se puede estando OCUPADO: primero debe desocuparse el grupo. */
+    public void sacarDeServicio() {
+        transitarA(EstadoOperativo.FUERA_DE_SERVICIO);
+    }
+
+    private void transitarA(EstadoOperativo destino) {
+        if (!this.estadoOperativo.puedeTransitarA(destino)) {
             throw new ReglaDominioException(
-                    "Transición de estado operativo inválida: " + this.estadoOperativo + " -> " + nuevo);
+                    "Transición de estado operativo inválida: " + this.estadoOperativo + " -> " + destino);
         }
-        this.estadoOperativo = nuevo;
+        this.estadoOperativo = destino;
     }
 
     /**

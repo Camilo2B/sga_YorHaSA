@@ -37,7 +37,7 @@ class ApartamentoPersistenceMapperTest {
         original.agregarTarifa(Tarifa.crear(temporadaId, Dinero.de(80000), LocalDate.of(2026, 1, 1)));
         original.agregarBloqueo(Bloqueo.crear(new Estancia(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 5)), "Mantenimiento"));
         original.registrarNovedad(Novedad.crear(LocalDate.of(2026, 10, 1), "Operario", "Lámpara dañada", Gravedad.BAJA));
-        original.cambiarEstadoOperativo(EstadoOperativo.OCUPADO);
+        original.registrarOcupacion();
 
         // Act
         ApartamentoEntity entity = mapper.toEntity(original);

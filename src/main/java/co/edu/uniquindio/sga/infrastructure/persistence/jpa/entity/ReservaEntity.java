@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -75,6 +76,18 @@ public class ReservaEntity {
     @Column(name = "hora_estimada_llegada")
     private LocalTime horaEstimadaLlegada;
 
+    @Column(name = "motivo_cancelacion", length = 300)
+    private String motivoCancelacion;
+
+    @Column(name = "fecha_cancelacion")
+    private LocalDateTime fechaCancelacion;
+
+    @Column(name = "monto_retenido", precision = 19, scale = 0)
+    private BigDecimal montoRetenido;
+
+    @Column(name = "monto_devuelto", precision = 19, scale = 0)
+    private BigDecimal montoDevuelto;
+
     @Column(name = "folio_id", nullable = false)
     private UUID folioId;
 
@@ -121,6 +134,14 @@ public class ReservaEntity {
         this.folioId = folioId;
     }
 
+    /** Las cuatro columnas quedan vacías mientras la reserva no se cancele. */
+    public void asignarCancelacion(String motivo, LocalDateTime fecha, BigDecimal retenido, BigDecimal devuelto) {
+        this.motivoCancelacion = motivo;
+        this.fechaCancelacion = fecha;
+        this.montoRetenido = retenido;
+        this.montoDevuelto = devuelto;
+    }
+
     public UUID getId() { return id; }
     public String getCodigo() { return codigo; }
     public String getApartamentoId() { return apartamentoId; }
@@ -133,6 +154,10 @@ public class ReservaEntity {
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public boolean isConMascota() { return conMascota; }
     public LocalTime getHoraEstimadaLlegada() { return horaEstimadaLlegada; }
+    public String getMotivoCancelacion() { return motivoCancelacion; }
+    public LocalDateTime getFechaCancelacion() { return fechaCancelacion; }
+    public BigDecimal getMontoRetenido() { return montoRetenido; }
+    public BigDecimal getMontoDevuelto() { return montoDevuelto; }
     public UUID getFolioId() { return folioId; }
     public List<DetalleNocheEmbeddable> getDetalleNoches() { return detalleNoches; }
     public List<OcupanteEmbeddable> getOcupantes() { return ocupantes; }

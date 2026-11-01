@@ -5,7 +5,9 @@ import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.entity.Titular;
 import co.edu.uniquindio.sga.domain.repository.GeneradorCodigoReserva;
 import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
+import co.edu.uniquindio.sga.domain.entity.PoliticaCancelacion;
 import co.edu.uniquindio.sga.domain.valueobject.CanalOrigen;
+import co.edu.uniquindio.sga.domain.valueobject.Cancelacion;
 import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Cotizacion;
 import co.edu.uniquindio.sga.domain.valueobject.DetalleNoche;
@@ -14,7 +16,10 @@ import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 import co.edu.uniquindio.sga.domain.valueobject.Gravedad;
 import co.edu.uniquindio.sga.domain.valueobject.MedioPago;
+import co.edu.uniquindio.sga.domain.valueobject.PlazoConfirmacion;
+import co.edu.uniquindio.sga.domain.valueobject.PoliticaAnticipo;
 import co.edu.uniquindio.sga.domain.valueobject.RecargoLlegadaNocturna;
+import co.edu.uniquindio.sga.domain.valueobject.TramoAntelacion;
 import co.edu.uniquindio.sga.domain.valueobject.VersionPolitica;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -71,6 +77,13 @@ class ReservaJpaRepositoryTest {
         reservaRepository.guardar(reserva);
         entityManager.flush();
         return reserva;
+    }
+
+    /** La versión 1 de la política que las reservas de estas pruebas tienen congelada. */
+    private static PoliticaCancelacion politicaV1() {
+        return PoliticaCancelacion.crear(1, LocalDate.of(2026, 1, 1), List.of(
+                new TramoAntelacion(168, BigDecimal.ZERO), new TramoAntelacion(72, new BigDecimal("0.50")),
+                new TramoAntelacion(0, BigDecimal.ONE)));
     }
 
     private void guardarYLimpiar(Reserva... reservas) {
@@ -139,12 +152,35 @@ class ReservaJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("Persistencia: la cancelación (motivo, fecha y reparto del anticipo) se guarda y se reconstruye")
+    void guardaYReconstruyeLaCancelacion() {
+        Reserva reserva = nuevaReserva("ATK-001", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 3));
+        reserva.registrarHoraEstimadaLlegada(LocalTime.of(15, 0),
+                new RecargoLlegadaNocturna(Dinero.de(30_000), LocalTime.of(22, 0), LocalTime.of(5, 0)));
+        reserva.confirmarConAnticipo(new PoliticaAnticipo(true, new BigDecimal("0.50")), new PlazoConfirmacion(24),
+                MedioPago.TARJETA, "REF-9", LocalDateTime.of(2026, 10, 30, 10, 0));
+        // 2 noches (100.000 + 125.000) x 2 = 450.000 de cotización; anticipo 225.000; 31 días de antelación: retención 0%
+        reserva.cancelar(politicaV1(), "El huésped cambió de planes", LocalDateTime.of(2026, 10, 30, 11, 0));
+        guardarYLimpiar(reserva);
+
+        Reserva leida = reservaRepository.obtenerPorCodigo(reserva.getCodigo()).orElseThrow();
+
+        assertEquals(EstadoReserva.CANCELADA, leida.getEstado());
+        Cancelacion cancelacion = leida.getCancelacion().orElseThrow();
+        assertEquals("El huésped cambió de planes", cancelacion.motivo());
+        assertEquals(LocalDateTime.of(2026, 10, 30, 11, 0), cancelacion.fecha());
+        assertEquals(Dinero.cero(), cancelacion.retenido());
+        assertEquals(Dinero.de(225_000), cancelacion.devuelto());
+        assertEquals(Dinero.de(225_000), leida.getFolio().calcularTotalPagos());
+    }
+
+    @Test
     @DisplayName("Persistencia: buscarActivasPorApartamento solo trae las activas del apartamento que se solapan (3.1)")
     void buscaSoloActivasSolapadasDelApartamento() {
         Reserva solapada = guardada(nuevaReserva("ATK-001", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 5)));
         guardada(nuevaReserva("ATK-001", LocalDate.of(2026, 12, 8), LocalDate.of(2026, 12, 10)));
         Reserva cancelada = nuevaReserva("ATK-001", LocalDate.of(2026, 12, 2), LocalDate.of(2026, 12, 4));
-        cancelada.cancelar(null);
+        cancelada.cancelar(politicaV1(), "Cancelada en la prueba", LocalDateTime.of(2026, 10, 30, 10, 0));
         guardada(cancelada);
         guardada(nuevaReserva("ATK-002", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 5)));
         entityManager.clear();
