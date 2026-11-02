@@ -5,6 +5,7 @@ import co.edu.uniquindio.sga.application.dto.request.CrearReservaRequest;
 import co.edu.uniquindio.sga.application.dto.request.OcupanteRequest;
 import co.edu.uniquindio.sga.application.dto.response.OcupanteResponse;
 import co.edu.uniquindio.sga.application.dto.response.ReservaDetalleResponse;
+import co.edu.uniquindio.sga.application.dto.response.ReservaResumenResponse;
 import co.edu.uniquindio.sga.application.exception.ReservaNoEncontradaException;
 import co.edu.uniquindio.sga.domain.entity.Ocupante;
 import co.edu.uniquindio.sga.domain.entity.Reserva;
@@ -34,7 +35,7 @@ public interface ReservaMapper {
                 toAcompanantes(request.ocupantes()),
                 new Estancia(request.fechaEntrada(), request.fechaSalida()),
                 request.canalOrigen(),
-                request.conMascota(),
+                Boolean.TRUE.equals(request.conMascota()),
                 request.horaEstimadaLlegada());
     }
 
@@ -72,6 +73,18 @@ public interface ReservaMapper {
 
     default OcupanteResponse toOcupanteResponse(Ocupante ocupante) {
         return new OcupanteResponse(ocupante.documento(), ocupante.nombre(), ocupante.fechaNacimiento());
+    }
+
+    default ReservaResumenResponse toResumenResponse(Reserva reserva) {
+        return new ReservaResumenResponse(
+                reserva.getCodigo().valor(),
+                reserva.getEstado(),
+                reserva.getApartamentoId(),
+                reserva.getEstancia().entrada(),
+                reserva.getEstancia().salida(),
+                reserva.getTitular().nombre(),
+                reserva.getOcupantes().size(),
+                reserva.getCotizacion().valorTotal().monto().longValueExact());
     }
 
     default ReservaDetalleResponse toDetalleResponse(Reserva reserva) {

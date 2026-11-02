@@ -4,10 +4,7 @@ import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 
 import java.time.LocalDate;
 
-/**
- * Pensado para el endpoint: GET /api/reservas
- *
- */
+/** Cada elemento del listado paginado de GET /api/reservas. */
 public record ReservaResumenResponse(
         String codigo,
         EstadoReserva estado,

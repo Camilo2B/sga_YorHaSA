@@ -2,11 +2,14 @@ package co.edu.uniquindio.sga.infrastructure.rest;
 
 import co.edu.uniquindio.sga.application.dto.request.CancelarReservaRequest;
 import co.edu.uniquindio.sga.application.dto.request.ConfirmarReservaRequest;
+import co.edu.uniquindio.sga.application.dto.request.ConsultarReservasRequest;
 import co.edu.uniquindio.sga.application.dto.request.CrearReservaRequest;
 import co.edu.uniquindio.sga.application.dto.response.ReservaDetalleResponse;
+import co.edu.uniquindio.sga.application.dto.response.ReservaResumenResponse;
 import co.edu.uniquindio.sga.application.usecase.CancelarReservaUseCase;
 import co.edu.uniquindio.sga.application.usecase.ConfirmarReservaUseCase;
 import co.edu.uniquindio.sga.application.usecase.ConsultarReservaUseCase;
+import co.edu.uniquindio.sga.application.usecase.ConsultarReservasUseCase;
 import co.edu.uniquindio.sga.application.usecase.CrearReservaUseCase;
 import co.edu.uniquindio.sga.application.usecase.DeclararNoShowUseCase;
 import co.edu.uniquindio.sga.application.usecase.RegistrarLlegadaUseCase;
@@ -14,8 +17,12 @@ import co.edu.uniquindio.sga.application.usecase.RegistrarSalidaUseCase;
 import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.infrastructure.rest.mapper.ReservaMapper;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -33,6 +40,7 @@ public class ReservaController {
 
     private final CrearReservaUseCase crearReservaUseCase;
     private final ConsultarReservaUseCase consultarReservaUseCase;
+    private final ConsultarReservasUseCase consultarReservasUseCase;
     private final ConfirmarReservaUseCase confirmarReservaUseCase;
     private final CancelarReservaUseCase cancelarReservaUseCase;
     private final RegistrarLlegadaUseCase registrarLlegadaUseCase;
@@ -42,6 +50,7 @@ public class ReservaController {
 
     public ReservaController(CrearReservaUseCase crearReservaUseCase,
                              ConsultarReservaUseCase consultarReservaUseCase,
+                             ConsultarReservasUseCase consultarReservasUseCase,
                              ConfirmarReservaUseCase confirmarReservaUseCase,
                              CancelarReservaUseCase cancelarReservaUseCase,
                              RegistrarLlegadaUseCase registrarLlegadaUseCase,
@@ -50,6 +59,7 @@ public class ReservaController {
                              ReservaMapper mapper) {
         this.crearReservaUseCase = crearReservaUseCase;
         this.consultarReservaUseCase = consultarReservaUseCase;
+        this.consultarReservasUseCase = consultarReservasUseCase;
         this.confirmarReservaUseCase = confirmarReservaUseCase;
         this.cancelarReservaUseCase = cancelarReservaUseCase;
         this.registrarLlegadaUseCase = registrarLlegadaUseCase;
@@ -68,8 +78,16 @@ public class ReservaController {
         return ResponseEntity.created(location).body(mapper.toDetalleResponse(creada));
     }
 
+    /** 7.5: listado con filtros opcionales, de la más reciente a la más antigua, 10 por página. */
+    @GetMapping
+    public Page<ReservaResumenResponse> consultar(@Valid @ModelAttribute ConsultarReservasRequest filtros,
+                                                  @PageableDefault(size = 10) Pageable pageable) {
+        return consultarReservasUseCase.ejecutar(filtros.estado(), filtros.identificacionApartamento(), filtros.desde(),
+                filtros.hasta(), pageable).map(mapper::toResumenResponse);
+    }
+
     @GetMapping("/{codigo}")
-    public ReservaDetalleResponse consultar(@PathVariable String codigo) {
+    public ReservaDetalleResponse consultarPorCodigo(@PathVariable String codigo) {
         return mapper.toDetalleResponse(consultarReservaUseCase.ejecutar(mapper.toCodigo(codigo)));
     }
 

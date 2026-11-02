@@ -60,13 +60,18 @@ class ReservaJpaRepositoryTest {
     }
 
     private Reserva nuevaReserva(String apartamentoId, LocalDate entrada, LocalDate salida, boolean conMascota) {
+        return nuevaReserva(apartamentoId, entrada, salida, conMascota, LocalDateTime.of(2026, 10, 30, 9, 30));
+    }
+
+    private Reserva nuevaReserva(String apartamentoId, LocalDate entrada, LocalDate salida, boolean conMascota,
+                                 LocalDateTime fechaCreacion) {
         Cotizacion cotizacion = new Cotizacion(List.of(
                 new DetalleNoche(entrada, "Media (Sincronización)", Dinero.de(100_000), 2),
                 new DetalleNoche(entrada.plusDays(1), "Alta (Despliegue de Misión)", Dinero.de(125_000), 2)));
         return new Reserva(generadorCodigo.generar(), apartamentoId,
                 Titular.crear("1094123456", "Carlos Pérez", LocalDate.of(1990, 5, 15)),
                 new Estancia(entrada, salida), CanalOrigen.PORTAL, cotizacion,
-                new VersionPolitica(1, LocalDate.of(2026, 1, 1)), LocalDateTime.of(2026, 10, 30, 9, 30), conMascota);
+                new VersionPolitica(1, LocalDate.of(2026, 1, 1)), fechaCreacion, conMascota);
     }
 
     /**
@@ -139,6 +144,9 @@ class ReservaJpaRepositoryTest {
     @Test
     @DisplayName("Persistencia: una reserva guardada de nuevo actualiza su estado sin duplicarse")
     void guardarDeNuevoActualiza() {
+        // La base ya trae las reservas de prueba del arranque: se comparan los conteos antes y después.
+        int confirmadasAntes = reservaRepository.buscarPorEstado(EstadoReserva.CONFIRMADA).size();
+        int pendientesAntes = reservaRepository.buscarPorEstado(EstadoReserva.PENDIENTE).size();
         Reserva reserva = nuevaReserva("ATK-001", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 3));
         guardarYLimpiar(reserva);
 
@@ -147,8 +155,49 @@ class ReservaJpaRepositoryTest {
         guardarYLimpiar(leida);
 
         assertEquals(EstadoReserva.CONFIRMADA, reservaRepository.obtenerPorCodigo(reserva.getCodigo()).orElseThrow().getEstado());
-        assertEquals(1, reservaRepository.buscarPorEstado(EstadoReserva.CONFIRMADA).size());
-        assertTrue(reservaRepository.buscarPorEstado(EstadoReserva.PENDIENTE).isEmpty());
+        assertEquals(confirmadasAntes + 1, reservaRepository.buscarPorEstado(EstadoReserva.CONFIRMADA).size());
+        assertEquals(pendientesAntes, reservaRepository.buscarPorEstado(EstadoReserva.PENDIENTE).size());
+    }
+
+    @Test
+    @DisplayName("Persistencia: buscarActivasPorApartamento sin fechas trae las activas del apartamento (vigentes y futuras)")
+    void buscaActivasDelApartamentoEnCualquierFecha() {
+        Reserva futura = guardada(nuevaReserva("HLR-002", LocalDate.of(2027, 3, 1), LocalDate.of(2027, 3, 3)));
+        Reserva cancelada = nuevaReserva("HLR-002", LocalDate.of(2026, 12, 2), LocalDate.of(2026, 12, 4));
+        cancelada.cancelar(politicaV1(), "Cancelada en la prueba", LocalDateTime.of(2026, 10, 30, 10, 0));
+        guardada(cancelada);
+        guardada(nuevaReserva("HLR-001", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 5)));
+        entityManager.clear();
+
+        List<Reserva> activas = reservaRepository.buscarActivasPorApartamento("HLR-002");
+
+        assertEquals(List.of(futura.getCodigo()), activas.stream().map(Reserva::getCodigo).toList());
+    }
+
+    @Test
+    @DisplayName("Persistencia: 7.5 el listado filtra por estado, apartamento y fechas, de la más reciente a la más antigua")
+    void listadoFiltradoYOrdenado() {
+        Reserva antigua = guardada(nuevaReserva("EXT-001", LocalDate.of(2027, 2, 1), LocalDate.of(2027, 2, 3), false,
+                LocalDateTime.of(2026, 10, 1, 8, 0)));
+        Reserva reciente = guardada(nuevaReserva("EXT-001", LocalDate.of(2027, 2, 10), LocalDate.of(2027, 2, 12), false,
+                LocalDateTime.of(2026, 10, 20, 8, 0)));
+        Reserva confirmada = nuevaReserva("EXT-001", LocalDate.of(2027, 3, 1), LocalDate.of(2027, 3, 3), false,
+                LocalDateTime.of(2026, 10, 10, 8, 0));
+        confirmada.confirmar();
+        guardada(confirmada);
+        entityManager.clear();
+
+        List<CodigoReserva> delApartamento = reservaRepository.buscar(null, "EXT-001", null, null).stream()
+                .map(Reserva::getCodigo).toList();
+        List<CodigoReserva> pendientes = reservaRepository.buscar(EstadoReserva.PENDIENTE, "EXT-001", null, null).stream()
+                .map(Reserva::getCodigo).toList();
+        // Solo la antigua tiene noches en [2027-02-02, 2027-02-10): la reciente entra justo el día en que termina el rango
+        List<CodigoReserva> enFebrero = reservaRepository.buscar(null, "EXT-001", LocalDate.of(2027, 2, 2),
+                LocalDate.of(2027, 2, 10)).stream().map(Reserva::getCodigo).toList();
+
+        assertEquals(List.of(reciente.getCodigo(), confirmada.getCodigo(), antigua.getCodigo()), delApartamento);
+        assertEquals(List.of(reciente.getCodigo(), antigua.getCodigo()), pendientes);
+        assertEquals(List.of(antigua.getCodigo()), enFebrero);
     }
 
     @Test

@@ -81,7 +81,7 @@ public class Reserva {
         this.cancelacion = null;
 
         this.estado = EstadoReserva.PENDIENTE;
-        this.folio = new Folio(this.id);
+        this.folio = Folio.crear(this.id);
         this.ocupantes = new ArrayList<>();
         this.novedades = new ArrayList<>();
 
@@ -384,6 +384,11 @@ public class Reserva {
 
     public boolean isConMascota() {
         return conMascota;
+    }
+
+    /** RN-02 / RN-Propia-03: cupos del apartamento que ocupa la reserva (todos los ocupantes y, si la trae, la mascota). */
+    public int cuposNecesarios() {
+        return ocupantes.size() + (conMascota ? 1 : 0);
     }
 
     /** Presente solo si la reserva fue cancelada. */

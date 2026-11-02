@@ -102,7 +102,7 @@ public class ReservaPersistenceMapper {
                 entity.isConMascota(),
                 entity.getHoraEstimadaLlegada(),
                 cancelacion,
-                new Folio(entity.getFolioId(), entity.getId(), cargos, pagos),
+                Folio.reconstruir(entity.getFolioId(), entity.getId(), cargos, pagos),
                 ocupantes,
                 novedades);
     }

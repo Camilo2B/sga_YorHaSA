@@ -16,7 +16,7 @@ class ReservaTest {
 
     private Reserva crearReservaEjemplo() {
         String apartamentoId = "APT-101";
-        Titular titular = Titular.crear("12345678", "Carlos Pérez", LocalDate.of(1990, 5, 15));
+        Titular titular = Titular.crear("12345678", "Carlos Perez", LocalDate.of(1990, 5, 15));
         Estancia estancia = new Estancia(LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 5));
 
         Cotizacion cotizacion = new Cotizacion(
@@ -33,26 +33,36 @@ class ReservaTest {
     }
 
     @Test
-    @DisplayName("Prueba 7 (Entidad): No se puede realizar Check-In si la reserva no está CONFIRMADA")
+    @DisplayName("Prueba 7 (Entidad): No se puede realizar Check-In si la reserva no esta CONFIRMADA")
     void lanzarExcepcionEnCheckInSinConfirmar() {
-        // Arrange
-        Reserva reserva = crearReservaEjemplo(); // Inicia PENDIENTE
-        reserva.agregarOcupante(Ocupante.crear("87654321", "Juan Gómez", LocalDate.of(1995, 8, 20)));
-
-        // Act & Assert
+        Reserva reserva = crearReservaEjemplo();
+        reserva.agregarOcupante(Ocupante.crear("87654321", "Juan Gomez", LocalDate.of(1995, 8, 20)));
         assertThrows(ReglaDominioException.class, reserva::realizarCheckIn);
     }
 
     @Test
     @DisplayName("Prueba 8 (Entidad): No se puede realizar Check-Out si la reserva tiene saldo pendiente")
     void lanzarExcepcionEnCheckOutConSaldoPendiente() {
-        // Arrange
         Reserva reserva = crearReservaEjemplo();
         reserva.confirmar();
-        reserva.agregarOcupante(Ocupante.crear("87654321", "Juan Gómez", LocalDate.of(1995, 8, 20)));
+        reserva.agregarOcupante(Ocupante.crear("87654321", "Juan Gomez", LocalDate.of(1995, 8, 20)));
         reserva.realizarCheckIn();
-
-        // Act & Assert
         assertThrows(ReglaDominioException.class, reserva::realizarCheckOut);
+    }
+
+    @Test
+    @DisplayName("No se puede confirmar una reserva que no este PENDIENTE")
+    void noPermiteConfirmarSiNoPendiente() {
+        Reserva reserva = crearReservaEjemplo();
+        reserva.confirmar();
+        assertThrows(ReglaDominioException.class, reserva::confirmar);
+    }
+
+    @Test
+    @DisplayName("No se puede hacer check-in sin ocupantes")
+    void noPermiteCheckInSinOcupantes() {
+        Reserva reserva = crearReservaEjemplo();
+        reserva.confirmar();
+        assertThrows(ReglaDominioException.class, reserva::realizarCheckIn);
     }
 }

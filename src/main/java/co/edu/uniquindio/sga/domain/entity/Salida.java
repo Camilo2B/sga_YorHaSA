@@ -1,43 +1,58 @@
 package co.edu.uniquindio.sga.domain.entity;
 
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
+import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Objects;
+import java.util.UUID;
 
-public class Salida {
-    private LocalDate fechaSalida;
-    private LocalTime horaSalida;
-    private Reserva reservaAsignada;
-    private Apartamento apartamentoAsignado;
-    private Titular titularAsignado;
+/**
+ * Salida (check-out) de un grupo. Referencia a la reserva, al apartamento y al titular solo por su identificador:
+ * son otros agregados (o parte de ellos), y un agregado nunca guarda a otro.
+ */
+public final class Salida {
 
-    public Salida(LocalDate fechaSalida, LocalTime horaSalida, Reserva reservaAsignada, Apartamento apartamentoAsignado, Titular titularAsignado) {
-        if (fechaSalida == null) {
-            throw new ReglaDominioException("La fecha de entrada no puede ser vacia");
-        }
+    private final UUID id;
+    private final LocalDate fechaSalida;
+    private final LocalTime horaSalida;
+    private final CodigoReserva codigoReserva;
+    private final String apartamentoId;
+    private final String documentoTitular;
 
-        if (horaSalida == null) {
-            throw new ReglaDominioException("La hora de entrada no puede ser vacia");
-        }
-
-        if (reservaAsignada == null) {
-            throw new ReglaDominioException("La reserva no puede ser vacia");
-        }
-
-        if (apartamentoAsignado == null) {
-            throw new ReglaDominioException("El apartamento no puede ser vacio");
-        }
-
-        if (titularAsignado == null) {
-            throw new ReglaDominioException("El titular no puede ser vacio");
-        }
+    private Salida(UUID id, LocalDate fechaSalida, LocalTime horaSalida, CodigoReserva codigoReserva,
+                   String apartamentoId, String documentoTitular) {
+        this.id = id;
         this.fechaSalida = fechaSalida;
         this.horaSalida = horaSalida;
-        this.reservaAsignada = reservaAsignada;
-        this.apartamentoAsignado = apartamentoAsignado;
-        this.titularAsignado = titularAsignado;
+        this.codigoReserva = codigoReserva;
+        this.apartamentoId = apartamentoId;
+        this.documentoTitular = documentoTitular;
+    }
+
+    public static Salida crear(LocalDate fechaSalida, LocalTime horaSalida, CodigoReserva codigoReserva,
+                               String apartamentoId, String documentoTitular) {
+        if (fechaSalida == null) {
+            throw new ReglaDominioException("La fecha de salida no puede ser vacia");
+        }
+        if (horaSalida == null) {
+            throw new ReglaDominioException("La hora de salida no puede ser vacia");
+        }
+        if (codigoReserva == null) {
+            throw new ReglaDominioException("La reserva no puede ser vacia");
+        }
+        if (apartamentoId == null || apartamentoId.isBlank()) {
+            throw new ReglaDominioException("El apartamento no puede ser vacio");
+        }
+        if (documentoTitular == null || documentoTitular.isBlank()) {
+            throw new ReglaDominioException("El titular no puede ser vacio");
+        }
+        return new Salida(UUID.randomUUID(), fechaSalida, horaSalida, codigoReserva, apartamentoId, documentoTitular);
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     public LocalDate getFechaSalida() {
@@ -48,27 +63,27 @@ public class Salida {
         return horaSalida;
     }
 
-    public Reserva getReservaAsignada() {
-        return reservaAsignada;
+    public CodigoReserva getCodigoReserva() {
+        return codigoReserva;
     }
 
-    public Apartamento getApartamentoAsignado() {
-        return apartamentoAsignado;
+    public String getApartamentoId() {
+        return apartamentoId;
     }
 
-    public Titular getTitularAsignado() {
-        return titularAsignado;
+    public String getDocumentoTitular() {
+        return documentoTitular;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Salida salida)) return false;
-        return Objects.equals(fechaSalida, salida.fechaSalida);
+        return Objects.equals(id, salida.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(fechaSalida);
+        return Objects.hashCode(id);
     }
 }
