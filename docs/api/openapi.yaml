@@ -6,6 +6,8 @@ info:
     Convención de errores: 400 = la forma del mensaje es inválida (la detectan las validaciones del DTO);
     404 = el recurso no existe; 409 = el mensaje es válido pero viola una regla de negocio (la detecta el dominio).
     Todos los errores usan el mismo formato ErrorResponse y nunca incluyen trazas técnicas.
+    Listados: todos se paginan de 10 en 10 (parámetros page, empezando en 0, y size) y responden con el mismo formato
+    de página (content + page).
   version: 1.0.0
 
 paths:
@@ -47,15 +49,19 @@ paths:
         '409':
           description: >-
             Regla de negocio violada: entrada anterior a hoy (RN-04), salida no posterior a la entrada (RN-03), titular menor
-            del umbral, ocupante repetido, capacidad superada (RN-02, la mascota ocupa un cupo: RN-Propia-03), apartamento
-            no disponible por reserva solapada o bloqueo (RN-01, RN-07) o sin tarifa para alguna noche.
+            del umbral, ocupante repetido, capacidad superada (RN-02, la mascota ocupa un cupo: RN-Propia-03), mascota en un
+            apartamento que no la permite (RN-Propia-03), apartamento no disponible por reserva solapada o bloqueo (RN-01,
+            RN-07) o sin tiempo de preparación con otra reserva (RN-20), o sin tarifa para alguna noche.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
     get:
-      summary: Consultar reservas filtradas por estado (ConsultarReservasPorEstadoUseCase)
+      summary: Listar reservas con filtros, de la más reciente a la más antigua (ConsultarReservasUseCase)
+      description: >-
+        7.5: todos los filtros son opcionales. Con desde y hasta se traen las reservas que tienen al menos una noche en
+        [desde, hasta). El orden es por fecha de creación, de la más reciente a la más antigua.
       operationId: consultarReservas
       parameters:
         - name: estado
@@ -64,15 +70,41 @@ paths:
           schema:
             type: string
             enum: [PENDIENTE, CONFIRMADA, EN_CURSO, FINALIZADA, CANCELADA, NO_SHOW]
+        - name: identificacionApartamento
+          in: query
+          required: false
+          schema:
+            type: string
+            example: CTL-001
+        - name: desde
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-12-01"
+        - name: hasta
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-12-31"
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
       responses:
         '200':
-          description: Listado de reservas encontradas.
+          description: Página de reservas encontradas (10 por página).
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ReservaResponse'
+                $ref: '#/components/schemas/PaginaReservaResumen'
+        '400':
+          description: Un filtro tiene un formato inválido (estado inexistente, fecha mal escrita) o hasta no es posterior a desde.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/reservas/{codigo}:
     get:
@@ -470,6 +502,167 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+    get:
+      summary: Listar el inventario de apartamentos (ListarApartamentosUseCase)
+      description: Activos y retirados de la venta, ordenados por identificación.
+      operationId: listarApartamentos
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de apartamentos (10 por página).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaApartamento'
+
+  /api/apartamentos/disponibles:
+    get:
+      summary: Buscar apartamentos disponibles por fechas y composición del grupo (BuscarApartamentosDisponiblesUseCase)
+      description: >-
+        7.5: un apartamento está disponible si está activo, admite al grupo (RN-02: adultos y niños cuentan para la
+        capacidad; RN-Propia-03: con mascota debe permitir mascotas y la mascota ocupa un cupo), no tiene bloqueos
+        (RN-07) ni reservas activas (RN-01) en esas noches y respeta el tiempo de preparación con la reserva anterior
+        y la siguiente (RN-20). Ordenados por identificación.
+      operationId: buscarApartamentosDisponibles
+      parameters:
+        - name: fechaEntrada
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-12-01"
+        - name: fechaSalida
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-12-03"
+        - name: adultos
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 2
+        - name: ninos
+          in: query
+          required: false
+          description: Si no se envía se asume 0.
+          schema:
+            type: integer
+            minimum: 0
+            example: 1
+        - name: conMascota
+          in: query
+          required: false
+          description: Si no se envía se asume false.
+          schema:
+            type: boolean
+            example: false
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de apartamentos disponibles (10 por página).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaApartamento'
+        '400':
+          description: Falta un parámetro obligatorio o tiene un formato inválido (fecha mal escrita, adultos menor a 1, niños negativos).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (RN-03, la fecha de salida no es posterior a la de entrada).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/capacidad:
+    put:
+      summary: Cambiar la capacidad de un apartamento (CambiarCapacidadApartamentoUseCase)
+      description: 7.3. La capacidad sigue siendo un tope rígido (RN-02) y no puede bajar de los cupos que ocupa una reserva activa.
+      operationId: cambiarCapacidadApartamento
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: SNR-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CambiarCapacidadRequest'
+      responses:
+        '200':
+          description: Capacidad cambiada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartamentoResponse'
+        '400':
+          description: La forma del mensaje es inválida (capacidad faltante o menor a 1).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (una reserva activa ocupa más cupos que la nueva capacidad, o el apartamento está retirado).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/retirar:
+    put:
+      summary: Retirar un apartamento de la venta (RetirarApartamentoUseCase)
+      description: >-
+        7.3 / 12.4: eliminación lógica. El apartamento queda con activo=false, deja de aparecer como disponible y las
+        reservas históricas lo siguen referenciando. Solo se permite si no tiene reservas activas ni futuras.
+      operationId: retirarApartamento
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: OPR-001
+      responses:
+        '200':
+          description: Apartamento retirado de la venta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartamentoResponse'
+        '404':
+          description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Regla de negocio violada (tiene reservas activas o futuras, o ya estaba retirado).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/apartamentos/{identificacion}:
     get:
       summary: Consultar un apartamento por su identificación (ConsultarApartamentoUseCase)
@@ -605,7 +798,17 @@ paths:
               $ref: '#/components/schemas/BloquearApartamentoRequest'
       responses:
         '201':
-          description: Bloqueo registrado exitosamente.
+          description: Bloqueo registrado. Las noches [fechaInicio, fechaFin) dejan de venderse (RN-07).
+          headers:
+            Location:
+              description: URI del bloqueo creado.
+              schema:
+                type: string
+                example: /api/apartamentos/ATK-001/bloqueos/9b1d2c3e-4f50-4a61-8b72-9c83d4e5f601
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BloqueoResponse'
         '400':
           description: La forma del mensaje es inválida (fechas faltantes o motivo vacío).
           content:
@@ -619,7 +822,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Conflicto con reservas activas en el rango seleccionado (RN-07) o con otro bloqueo existente.
+          description: Conflicto con reservas activas en el rango seleccionado (RN-07), con otro bloqueo existente o fechas invertidas (RN-03).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/bloqueos:
+    get:
+      summary: Listar los bloqueos de un apartamento (ListarBloqueosApartamentoUseCase)
+      description: Ordenados por fecha de inicio.
+      operationId: listarBloqueosApartamento
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: GNR-001
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de bloqueos (10 por página).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaBloqueo'
+        '404':
+          description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/bloqueos/{id}:
+    get:
+      summary: Consultar un bloqueo de un apartamento (ConsultarBloqueoUseCase)
+      operationId: consultarBloqueo
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bloqueo encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BloqueoResponse'
+        '400':
+          description: El identificador no tiene formato UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento o el bloqueo.
           content:
             application/json:
               schema:
@@ -650,10 +918,10 @@ paths:
           description: Tarifa definida.
           headers:
             Location:
-              description: URI del histórico de tarifas del apartamento.
+              description: URI de la tarifa creada.
               schema:
                 type: string
-                example: /api/apartamentos/ATK-001/tarifas
+                example: /api/apartamentos/ATK-001/tarifas/5c6d7e8f-9a01-4b23-8c45-6d7e8f9a0b12
           content:
             application/json:
               schema:
@@ -694,15 +962,15 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
       responses:
         '200':
-          description: Histórico de tarifas.
+          description: Página del histórico de tarifas (10 por página).
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TarifaResponse'
+                $ref: '#/components/schemas/PaginaTarifa'
         '400':
           description: El temporadaId no tiene formato UUID.
           content:
@@ -711,6 +979,43 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: No existe el apartamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/apartamentos/{identificacion}/tarifas/{id}:
+    get:
+      summary: Consultar una tarifa del histórico de un apartamento (ConsultarTarifaUseCase)
+      operationId: consultarTarifa
+      parameters:
+        - name: identificacion
+          in: path
+          required: true
+          schema:
+            type: string
+            example: ATK-001
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tarifa encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TarifaResponse'
+        '400':
+          description: El identificador no tiene formato UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el apartamento o la tarifa.
           content:
             application/json:
               schema:
@@ -765,15 +1070,16 @@ paths:
       summary: Consultar todas las versiones de la política de cancelación (ListarPoliticasCancelacionUseCase)
       description: De la primera versión a la más reciente.
       operationId: listarPoliticasCancelacion
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
       responses:
         '200':
-          description: Historial de versiones.
+          description: Página del historial de versiones (10 por página).
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PoliticaCancelacionResponse'
+                $ref: '#/components/schemas/PaginaPoliticaCancelacion'
         '404':
           description: El alojamiento todavía no ha sido configurado.
           content:
@@ -853,7 +1159,95 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Número de página, empezando en 0.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      description: Elementos por página.
+      schema:
+        type: integer
+        minimum: 1
+        default: 10
+
   schemas:
+    PaginaInfo:
+      type: object
+      description: Datos de la página que acompañan a cada listado.
+      properties:
+        size:
+          type: integer
+          example: 10
+        number:
+          type: integer
+          description: Página actual, empezando en 0.
+          example: 0
+        totalElements:
+          type: integer
+          example: 15
+        totalPages:
+          type: integer
+          example: 2
+
+    PaginaApartamento:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApartamentoResponse'
+        page:
+          $ref: '#/components/schemas/PaginaInfo'
+
+    PaginaReservaResumen:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservaResumenResponse'
+        page:
+          $ref: '#/components/schemas/PaginaInfo'
+
+    PaginaTarifa:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TarifaResponse'
+        page:
+          $ref: '#/components/schemas/PaginaInfo'
+
+    PaginaBloqueo:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/BloqueoResponse'
+        page:
+          $ref: '#/components/schemas/PaginaInfo'
+
+    PaginaPoliticaCancelacion:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PoliticaCancelacionResponse'
+        page:
+          $ref: '#/components/schemas/PaginaInfo'
+
     CrearReservaRequest:
       type: object
       required:
@@ -914,26 +1308,65 @@ components:
           type: string
           example: "Mantenimiento preventivo de sistemas orbitales"
 
-    ReservaResponse:
+    BloqueoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        identificacionApartamento:
+          type: string
+          example: ATK-001
+        fechaInicio:
+          type: string
+          format: date
+          example: "2026-11-01"
+        fechaFin:
+          type: string
+          format: date
+          description: Primera noche que vuelve a venderse (el rango es [fechaInicio, fechaFin)).
+          example: "2026-11-05"
+        motivo:
+          type: string
+          example: "Mantenimiento preventivo de sistemas orbitales"
+
+    CambiarCapacidadRequest:
+      type: object
+      required:
+        - capacidad
+      properties:
+        capacidad:
+          type: integer
+          minimum: 1
+          example: 5
+
+    ReservaResumenResponse:
       type: object
       properties:
         codigo:
           type: string
           example: RES-2026-00001
-        apartamentoId:
-          type: string
-          example: ATK-001
         estado:
           type: string
-          example: PENDIENTE
+          enum: [PENDIENTE, CONFIRMADA, EN_CURSO, FINALIZADA, CANCELADA, NO_SHOW]
+        identificacionApartamento:
+          type: string
+          example: ATK-001
         fechaEntrada:
           type: string
           format: date
         fechaSalida:
           type: string
           format: date
+        nombreTitular:
+          type: string
+          example: Carlos Pérez
+        totalOcupantes:
+          type: integer
+          example: 2
         valorTotal:
-          type: number
+          type: integer
+          description: Valor congelado de la estancia en COP (RN-22).
           example: 500000
 
     CrearApartamentoRequest:
@@ -963,6 +1396,10 @@ components:
         estadoOperativoInicial:
           type: string
           enum: [PREPARADO, OCUPADO, PENDIENTE_PREPARACION, EN_PREPARACION, FUERA_DE_SERVICIO]
+        permiteMascotas:
+          type: boolean
+          description: RN-Propia-03. Si no se envía se asume false (el apartamento no recibe reservas con mascota).
+          example: true
 
     DormitorioRequest:
       type: object
@@ -993,11 +1430,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DormitorioResponse'
+        permiteMascotas:
+          type: boolean
+          example: true
         estadoOperativo:
           type: string
           enum: [PREPARADO, OCUPADO, PENDIENTE_PREPARACION, EN_PREPARACION, FUERA_DE_SERVICIO]
         activo:
           type: boolean
+          description: false si el apartamento fue retirado de la venta (eliminación lógica, 12.4).
           example: true
 
     DormitorioResponse:
@@ -1489,9 +1930,11 @@ components:
         codigoError:
           type: string
           description: >-
-            Código estable del tipo de error. VALIDACION y SOLICITUD_MALFORMADA acompañan a un 400;
-            NO_ENCONTRADO, a un 404; REGLA_DOMINIO, a un 409.
-          enum: [VALIDACION, SOLICITUD_MALFORMADA, NO_ENCONTRADO, REGLA_DOMINIO]
+            Código estable del tipo de error. VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA y
+            SOLICITUD_INVALIDA acompañan a un 400; NO_ENCONTRADO, a un 404; METODO_NO_PERMITIDO, a un 405;
+            TIPO_NO_SOPORTADO, a un 415; REGLA_DOMINIO, a un 409; ERROR_INTERNO, a un 500 (sin detalles técnicos).
+          enum: [VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA, SOLICITUD_INVALIDA, NO_ENCONTRADO,
+                 METODO_NO_PERMITIDO, TIPO_NO_SOPORTADO, REGLA_DOMINIO, ERROR_INTERNO]
           example: REGLA_DOMINIO
         mensaje:
           type: string

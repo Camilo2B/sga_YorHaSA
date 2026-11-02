@@ -31,7 +31,7 @@ class GestionBloqueoServiceTest {
     void setUp() {
         apartamentoRepository = new ApartamentoRepositoryInMemory();
         reservaRepository = new ReservaRepositoryInMemory();
-        servicio = new GestionBloqueoService(apartamentoRepository, reservaRepository);
+        servicio = new GestionBloqueoService(reservaRepository);
     }
 
     @Test
@@ -48,7 +48,8 @@ class GestionBloqueoServiceTest {
         );
 
         // Act
-        servicio.registrarBloqueo("APT-101", bloqueo);
+        servicio.registrarBloqueo(apt, bloqueo);
+        apartamentoRepository.guardar(apt);
 
         // Assert
         Apartamento aptGuardado = apartamentoRepository.buscarPorId("APT-101").orElseThrow();
@@ -98,6 +99,7 @@ class GestionBloqueoServiceTest {
         );
 
         // Act & Assert
-        assertThrows(ReglaDominioException.class, () -> servicio.registrarBloqueo("APT-101", bloqueo));
+        assertThrows(ReglaDominioException.class, () -> servicio.registrarBloqueo(apt, bloqueo));
+        assertTrue(apt.bloqueos().isEmpty());
     }
 }

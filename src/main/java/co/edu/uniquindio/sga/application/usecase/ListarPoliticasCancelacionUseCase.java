@@ -3,10 +3,10 @@ package co.edu.uniquindio.sga.application.usecase;
 import co.edu.uniquindio.sga.application.exception.AlojamientoNoEncontradoException;
 import co.edu.uniquindio.sga.domain.entity.PoliticaCancelacion;
 import co.edu.uniquindio.sga.domain.repository.AlojamientoRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /** Caso de uso: consultar todas las versiones de la política de cancelación, de la primera a la más reciente (7.4). */
 @Service
@@ -19,7 +19,9 @@ public class ListarPoliticasCancelacionUseCase {
     }
 
     @Transactional(readOnly = true)
-    public List<PoliticaCancelacion> ejecutar() {
-        return alojamientoRepository.obtener().orElseThrow(AlojamientoNoEncontradoException::new).historialPoliticas();
+    public Page<PoliticaCancelacion> ejecutar(Pageable pageable) {
+        return Paginacion.paginar(
+                alojamientoRepository.obtener().orElseThrow(AlojamientoNoEncontradoException::new).historialPoliticas(),
+                pageable);
     }
 }
