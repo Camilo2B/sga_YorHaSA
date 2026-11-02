@@ -15,6 +15,9 @@ import co.edu.uniquindio.sga.domain.entity.PoliticaCancelacion;
 import co.edu.uniquindio.sga.domain.entity.Temporada;
 import co.edu.uniquindio.sga.infrastructure.rest.mapper.AlojamientoMapper;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 /** Controller delgado del recurso alojamiento: valida, traduce con el mapper y delega en el caso de uso. */
@@ -89,10 +91,10 @@ public class AlojamientoController {
         return ResponseEntity.created(location).body(mapper.toPoliticaResponse(creada));
     }
 
-    /** 7.4: todas las versiones de la política, de la primera a la más reciente. */
+    /** 7.4: todas las versiones de la política, de la primera a la más reciente, 10 por página. */
     @GetMapping("/politica-cancelacion")
-    public List<PoliticaCancelacionResponse> listarPoliticas() {
-        return mapper.toPoliticaResponses(listarPoliticasCancelacionUseCase.ejecutar());
+    public Page<PoliticaCancelacionResponse> listarPoliticas(@PageableDefault(size = 10) Pageable pageable) {
+        return listarPoliticasCancelacionUseCase.ejecutar(pageable).map(mapper::toPoliticaResponse);
     }
 
     @GetMapping("/politica-cancelacion/{version}")

@@ -2,13 +2,24 @@ package co.edu.uniquindio.sga.infrastructure.config;
 
 import co.edu.uniquindio.sga.domain.entity.Alojamiento;
 import co.edu.uniquindio.sga.domain.entity.Apartamento;
+import co.edu.uniquindio.sga.domain.entity.Bloqueo;
+import co.edu.uniquindio.sga.domain.entity.Ocupante;
+import co.edu.uniquindio.sga.domain.entity.Reserva;
 import co.edu.uniquindio.sga.domain.entity.Temporada;
+import co.edu.uniquindio.sga.domain.entity.Titular;
 import co.edu.uniquindio.sga.domain.repository.AlojamientoRepository;
 import co.edu.uniquindio.sga.domain.repository.ApartamentoRepository;
+import co.edu.uniquindio.sga.domain.repository.ReservaRepository;
+import co.edu.uniquindio.sga.domain.service.CreacionReservaService;
+import co.edu.uniquindio.sga.domain.service.GestionBloqueoService;
+import co.edu.uniquindio.sga.domain.valueobject.CanalOrigen;
 import co.edu.uniquindio.sga.domain.valueobject.Dinero;
 import co.edu.uniquindio.sga.domain.valueobject.Dormitorio;
+import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 import co.edu.uniquindio.sga.domain.valueobject.EstadoOperativo;
+import co.edu.uniquindio.sga.domain.valueobject.MedioPago;
 import co.edu.uniquindio.sga.domain.valueobject.ParametrosAlojamiento;
+import co.edu.uniquindio.sga.domain.valueobject.SolicitudReserva;
 import co.edu.uniquindio.sga.domain.valueobject.TramoAntelacion;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -17,6 +28,8 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +37,10 @@ import java.util.UUID;
 /**
  * Datos de prueba (12.3): al arrancar carga solo lo que falte de la Ficha: el alojamiento (A.1) con su temporada base
  * y la política de cancelación v1 (A.4), las temporadas Media y Alta (A.3) y los 15 apartamentos del inventario (A.2)
- * con una tarifa por cada temporada (A.3: toda combinación apartamento × temporada tiene tarifa).
+ * con una tarifa por cada temporada (A.3: toda combinación apartamento × temporada tiene tarifa). La Ficha (A.4)
+ * acepta mascotas, así que los apartamentos del inventario las permiten.
+ * Para que los listados y la disponibilidad tengan datos desde el arranque, se cargan también un bloqueo y tres
+ * reservas (pendiente, confirmada y cancelada) con fechas relativas a hoy, creadas con las mismas reglas del dominio.
  * Los PARÁMETROS no se cargan aquí: vienen de application.properties. Cada paso consulta antes de crear, así que
  * arrancar varias veces no duplica nada.
  */
@@ -83,15 +99,24 @@ public class AlojamientoInicializador implements ApplicationRunner {
 
     private final AlojamientoRepository alojamientoRepository;
     private final ApartamentoRepository apartamentoRepository;
+    private final ReservaRepository reservaRepository;
+    private final CreacionReservaService creacionReservaService;
+    private final GestionBloqueoService gestionBloqueoService;
     private final ParametrosAlojamiento parametros;
     private final Clock clock;
 
     public AlojamientoInicializador(AlojamientoRepository alojamientoRepository,
                                     ApartamentoRepository apartamentoRepository,
+                                    ReservaRepository reservaRepository,
+                                    CreacionReservaService creacionReservaService,
+                                    GestionBloqueoService gestionBloqueoService,
                                     ParametrosAlojamiento parametros,
                                     Clock clock) {
         this.alojamientoRepository = alojamientoRepository;
         this.apartamentoRepository = apartamentoRepository;
+        this.reservaRepository = reservaRepository;
+        this.creacionReservaService = creacionReservaService;
+        this.gestionBloqueoService = gestionBloqueoService;
         this.parametros = parametros;
         this.clock = clock;
     }
@@ -106,6 +131,8 @@ public class AlojamientoInicializador implements ApplicationRunner {
         alojamientoRepository.guardar(alojamiento);
 
         cargarApartamentos(alojamiento);
+        cargarBloqueoDePrueba();
+        cargarReservasDePrueba(alojamiento);
     }
 
     private static void agregarTemporadaSiFalta(Alojamiento alojamiento, String nombre, LocalDate desde, LocalDate hasta) {
@@ -125,12 +152,59 @@ public class AlojamientoInicializador implements ApplicationRunner {
                 continue;
             }
             Apartamento apartamento = Apartamento.crear(ficha.id(), ficha.nombre(), ficha.capacidad(),
-                    dormitorios(ficha), EstadoOperativo.PREPARADO);
+                    dormitorios(ficha), null, true, EstadoOperativo.PREPARADO);
             apartamento.definirTarifa(base, Dinero.de(ficha.tarifaBase()), TARIFAS_VIGENTES_DESDE);
             apartamento.definirTarifa(media, Dinero.de(ficha.tarifaMedia()), TARIFAS_VIGENTES_DESDE);
             apartamento.definirTarifa(alta, Dinero.de(ficha.tarifaAlta()), TARIFAS_VIGENTES_DESDE);
             apartamentoRepository.guardar(apartamento);
         }
+    }
+
+    /** RN-07: mantenimiento preventivo de GNR-001 dentro de 10 días, por 3 noches. */
+    private void cargarBloqueoDePrueba() {
+        Apartamento apartamento = apartamentoRepository.buscarPorId("GNR-001").orElseThrow();
+        if (!apartamento.bloqueos().isEmpty()) {
+            return;
+        }
+        LocalDate hoy = LocalDate.now(clock);
+        gestionBloqueoService.registrarBloqueo(apartamento,
+                Bloqueo.crear(new Estancia(hoy.plusDays(10), hoy.plusDays(13)), "Mantenimiento preventivo de la ventilación"));
+        apartamentoRepository.guardar(apartamento);
+    }
+
+    /** Una reserva por estado de interés para los listados: PENDIENTE (BTL-002), CONFIRMADA (CTL-001) y CANCELADA (DFD-001). */
+    private void cargarReservasDePrueba(Alojamiento alojamiento) {
+        if (!reservaRepository.buscar(null, null, null, null).isEmpty()) {
+            return;
+        }
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        LocalDate hoy = ahora.toLocalDate();
+
+        Reserva pendiente = crearReserva(alojamiento, "BTL-002", hoy.plusDays(20), 3,
+                Titular.crear("1094000001", "Ana Torres", LocalDate.of(1990, 3, 14)),
+                List.of(Ocupante.crear("1094000002", "Luis Torres", LocalDate.of(1988, 7, 2))), CanalOrigen.PORTAL, ahora);
+        reservaRepository.guardar(pendiente);
+
+        Reserva confirmada = crearReserva(alojamiento, "CTL-001", hoy.plusDays(30), 2,
+                Titular.crear("1094000003", "María Gómez", LocalDate.of(1985, 11, 23)),
+                List.of(Ocupante.crear("1094000004", "Sofía Gómez", hoy.minusYears(7))), CanalOrigen.DIRECTO, ahora);
+        confirmada.confirmarConAnticipo(parametros.politicaAnticipo(), parametros.plazoConfirmacion(),
+                MedioPago.TARJETA, "DATOS-PRUEBA-1", ahora);
+        reservaRepository.guardar(confirmada);
+
+        Reserva cancelada = crearReserva(alojamiento, "DFD-001", hoy.plusDays(40), 2,
+                Titular.crear("1094000005", "Pedro Ruiz", LocalDate.of(1979, 1, 30)), List.of(), CanalOrigen.PORTAL, ahora);
+        cancelada.cancelar(alojamiento.politicaDeVersion(cancelada.getVersionPolitica()).orElseThrow(),
+                "Cambio de planes del huésped", ahora);
+        reservaRepository.guardar(cancelada);
+    }
+
+    private Reserva crearReserva(Alojamiento alojamiento, String apartamentoId, LocalDate entrada, int noches,
+                                 Titular titular, List<Ocupante> acompanantes, CanalOrigen canal, LocalDateTime ahora) {
+        Apartamento apartamento = apartamentoRepository.buscarPorId(apartamentoId).orElseThrow();
+        SolicitudReserva solicitud = new SolicitudReserva(titular, acompanantes,
+                new Estancia(entrada, entrada.plusDays(noches)), canal, false, LocalTime.of(16, 0));
+        return creacionReservaService.crear(alojamiento, apartamento, solicitud, ahora);
     }
 
     private static UUID temporada(Alojamiento alojamiento, String nombre) {

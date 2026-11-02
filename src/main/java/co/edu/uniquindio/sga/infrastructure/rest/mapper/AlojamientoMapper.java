@@ -72,6 +72,4 @@ public interface AlojamientoMapper {
     }
 
     List<TramoAntelacion> toTramos(List<TramoRequest> requests);
-
-    List<PoliticaCancelacionResponse> toPoliticaResponses(List<PoliticaCancelacion> politicas);
 }
