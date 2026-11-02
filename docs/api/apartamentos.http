@@ -19,7 +19,7 @@ Content-Type: application/json
 ### 2) Consultarlo -> 200 OK
 GET http://localhost:8080/api/apartamentos/TST-001
 
-### 3) Crear el mismo otra vez -> 409 Conflict (regla L-04: identificación única)
+### 3) Crear uno con una identificación que ya existe (ATK-001, de la Ficha) -> 409 Conflict (regla L-04: identificación única)
 POST http://localhost:8080/api/apartamentos
 Content-Type: application/json
 
@@ -85,7 +85,7 @@ Content-Type: application/json
   "fechaFin": "2027-07-20"
 }
 
-### 10) Fechas invertidas -> 409 Conflict (regla de dominio: la salida debe ser posterior a la entrada)
+### 10) Fechas invertidas -> 409 Conflict (regla de dominio: la fecha de fin debe ser posterior a la fecha de inicio)
 POST http://localhost:8080/api/alojamiento/temporadas
 Content-Type: application/json
 
@@ -840,7 +840,7 @@ Content-Type: application/json
 ### 92) Declarar el no-show antes de la hora límite -> 409 Conflict (RN-12)
 PUT http://localhost:8080/api/reservas/{{codigoManana}}/no-show
 
-### 93) Declarar el no-show de una reserva PENDIENTE (la de la prueba 53 ya fue cancelada) -> 409 Conflict (RN-08)
+### 93) Declarar el no-show de una reserva CANCELADA (la de la prueba 53, cancelada en la 65) -> 409 Conflict (RN-08)
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/no-show
 
 ### 94) No-show de una reserva que no existe -> 404 Not Found
@@ -1038,3 +1038,68 @@ GET http://localhost:8080/api/reservas?desde=2026-12-05&hasta=2026-12-01
 
 ### 128) Versiones de la política de cancelación, paginadas -> 200 OK
 GET http://localhost:8080/api/alojamiento/politica-cancelacion?page=0&size=10
+
+### ---------------- Consulta de una temporada ----------------
+
+### 129) Consultar la temporada registrada en la prueba 8 (la URI del Location) -> 200 OK (ejecutar antes la 8)
+GET http://localhost:8080/api/alojamiento/temporadas/{{temporadaNuevaId}}
+
+### 130) Temporada que no existe -> 404 Not Found
+GET http://localhost:8080/api/alojamiento/temporadas/00000000-0000-0000-0000-000000000000
+
+### ---------------- Mascotas (RN-Propia-03) ----------------
+
+### 131) Crear un apartamento que permite mascotas -> 201 Created, permiteMascotas=true
+POST http://localhost:8080/api/apartamentos
+Content-Type: application/json
+
+{
+  "identificacion": "TST-002",
+  "nombre": "Suite con mascotas",
+  "capacidad": 3,
+  "dormitorios": [ { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" } ],
+  "estadoOperativoInicial": "PREPARADO",
+  "permiteMascotas": true
+}
+
+### 132) Reserva con mascota en BTL-001 (permite mascotas, capacidad 2): titular + mascota = 2 cupos -> 201 Created
+POST http://localhost:8080/api/reservas
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "BTL-001",
+  "fechaEntrada": "2027-04-10",
+  "fechaSalida": "2027-04-12",
+  "canalOrigen": "PORTAL",
+  "conMascota": true,
+  "titular": { "documento": "1000000500", "nombre": "Dueño de Mascota", "fechaNacimiento": "1990-01-01" },
+  "ocupantes": []
+}
+
+### ---------------- Otros casos de error ----------------
+
+### 133) Cancelar con un motivo de menos de 5 caracteres -> 400 Bad Request
+PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/cancelar
+Content-Type: application/json
+
+{
+  "motivo": "No"
+}
+
+### 134) Bloqueos de un apartamento que no existe -> 404 Not Found
+GET http://localhost:8080/api/apartamentos/NO-EXISTE/bloqueos
+
+### 135) Pago en el folio de una reserva que no existe -> 404 Not Found
+POST http://localhost:8080/api/reservas/RES-2026-99999/folio/pagos
+Content-Type: application/json
+
+{
+  "medioPago": "EFECTIVO",
+  "valor": 1000
+}
+
+### 136) Cuerpo enviado sin JSON como tipo de contenido -> 415 Unsupported Media Type
+POST http://localhost:8080/api/apartamentos
+Content-Type: text/plain
+
+identificacion=TST-003
