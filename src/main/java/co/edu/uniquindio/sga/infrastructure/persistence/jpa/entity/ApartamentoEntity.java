@@ -51,6 +51,9 @@ public class ApartamentoEntity {
     @Column(name = "estado_operativo", nullable = false)
     private EstadoOperativo estadoOperativo;
 
+    @Column(name = "permite_mascotas", nullable = false)
+    private boolean permiteMascotas;
+
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
@@ -68,12 +71,14 @@ public class ApartamentoEntity {
     }
 
     public ApartamentoEntity(String identificacion, String nombre, int capacidad, String tipoNombre,
-                             List<String> tipoCaracteristicas, EstadoOperativo estadoOperativo, boolean activo) {
+                             List<String> tipoCaracteristicas, boolean permiteMascotas, EstadoOperativo estadoOperativo,
+                             boolean activo) {
         this.identificacion = identificacion;
         this.nombre = nombre;
         this.capacidad = capacidad;
         this.tipoNombre = tipoNombre;
         this.tipoCaracteristicas = new ArrayList<>(tipoCaracteristicas);
+        this.permiteMascotas = permiteMascotas;
         this.estadoOperativo = estadoOperativo;
         this.activo = activo;
     }
@@ -99,6 +104,7 @@ public class ApartamentoEntity {
     public String getTipoNombre() { return tipoNombre; }
     public List<String> getTipoCaracteristicas() { return tipoCaracteristicas; }
     public List<DormitorioEmbeddable> getDormitorios() { return dormitorios; }
+    public boolean isPermiteMascotas() { return permiteMascotas; }
     public EstadoOperativo getEstadoOperativo() { return estadoOperativo; }
     public boolean isActivo() { return activo; }
     public List<TarifaEntity> getTarifas() { return tarifas; }

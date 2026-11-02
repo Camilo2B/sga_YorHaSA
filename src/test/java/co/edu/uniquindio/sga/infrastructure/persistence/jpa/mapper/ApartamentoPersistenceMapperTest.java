@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApartamentoPersistenceMapperTest {
 
@@ -32,7 +33,7 @@ class ApartamentoPersistenceMapperTest {
         UUID temporadaId = UUID.randomUUID();
         Apartamento original = Apartamento.crear("ATK-001", "Attack Suite", 4,
                 List.of(new Dormitorio("Dormitorio 1", "Cama doble"), new Dormitorio("Dormitorio 2", "Cama doble")),
-                new TipoApartamento("Attack", List.of("Zona de práctica", "Cocina minimalista")),
+                new TipoApartamento("Attack", List.of("Zona de práctica", "Cocina minimalista")), true,
                 EstadoOperativo.PREPARADO);
         original.agregarTarifa(Tarifa.crear(temporadaId, Dinero.de(80000), LocalDate.of(2026, 1, 1)));
         original.agregarBloqueo(Bloqueo.crear(new Estancia(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 5)), "Mantenimiento"));
@@ -49,6 +50,7 @@ class ApartamentoPersistenceMapperTest {
         assertEquals(original.capacidad(), restaurado.capacidad());
         assertEquals(original.dormitorios(), restaurado.dormitorios());
         assertEquals(original.tipo(), restaurado.tipo());
+        assertTrue(restaurado.permiteMascotas());
         assertEquals(EstadoOperativo.OCUPADO, restaurado.estadoOperativo());
         assertEquals(original.tarifas().get(0).id(), restaurado.tarifas().get(0).id());
         assertEquals(original.tarifas().get(0).valorPorNoche(), restaurado.tarifas().get(0).valorPorNoche());

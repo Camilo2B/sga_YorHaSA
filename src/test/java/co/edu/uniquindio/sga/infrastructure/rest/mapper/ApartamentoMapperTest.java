@@ -13,6 +13,7 @@ import org.mapstruct.factory.Mappers;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -25,7 +26,7 @@ class ApartamentoMapperTest {
     void convierteRequestADominioYDominioAResponse() {
         // Arrange
         CrearApartamentoRequest request = new CrearApartamentoRequest("ATK-001", "Attack Suite", 4,
-                List.of(new DormitorioRequest("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO);
+                List.of(new DormitorioRequest("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO, null);
 
         // Act
         Apartamento dominio = mapper.toDomain(request);
@@ -40,6 +41,17 @@ class ApartamentoMapperTest {
         assertEquals("Cama doble", response.dormitorios().get(0).tipoCama());
         assertEquals(EstadoOperativo.PREPARADO, response.estadoOperativo());
         assertTrue(response.activo());
+        // Sin indicarlo, el apartamento no permite mascotas (RN-Propia-03)
+        assertFalse(response.permiteMascotas());
+    }
+
+    @Test
+    @DisplayName("API: el mapper conserva si el apartamento permite mascotas (RN-Propia-03)")
+    void conservaSiPermiteMascotas() {
+        CrearApartamentoRequest request = new CrearApartamentoRequest("ATK-003", "Con mascotas", 4,
+                List.of(new DormitorioRequest("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO, true);
+
+        assertTrue(mapper.toResponse(mapper.toDomain(request)).permiteMascotas());
     }
 
     @Test
@@ -47,7 +59,7 @@ class ApartamentoMapperTest {
     void elMapperNoSaltaLasValidacionesDelDominio() {
         // Arrange
         CrearApartamentoRequest request = new CrearApartamentoRequest("ATK-002", "Sin capacidad", 0,
-                List.of(new DormitorioRequest("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO);
+                List.of(new DormitorioRequest("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO, null);
 
         // Act + Assert
         assertThrows(ReglaDominioException.class, () -> mapper.toDomain(request));

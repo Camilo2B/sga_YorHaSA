@@ -34,6 +34,7 @@ public class ApartamentoPersistenceMapper {
                 apartamento.capacidad(),
                 tipo == null ? null : tipo.nombreTipo(),
                 tipo == null ? List.of() : tipo.caracteristicas(),
+                apartamento.permiteMascotas(),
                 apartamento.estadoOperativo(),
                 apartamento.activo());
 
@@ -67,6 +68,7 @@ public class ApartamentoPersistenceMapper {
                 .toList();
 
         return Apartamento.reconstruir(entity.getIdentificacion(), entity.getNombre(), entity.getCapacidad(),
-                dormitorios, tipo, entity.getEstadoOperativo(), tarifas, bloqueos, novedades, entity.isActivo());
+                dormitorios, tipo, entity.isPermiteMascotas(), entity.getEstadoOperativo(), tarifas, bloqueos, novedades,
+                entity.isActivo());
     }
 }
