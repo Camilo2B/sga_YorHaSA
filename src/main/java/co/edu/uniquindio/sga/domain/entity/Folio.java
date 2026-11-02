@@ -25,18 +25,21 @@ public class Folio {
     private final List<Cargo> cargos;
     private final List<Pago> pagos;
 
-    public Folio(UUID reservaId) {
-        this.id = UUID.randomUUID();
-        this.reservaId = Objects.requireNonNull(reservaId, "El ID de la reserva no puede ser nulo.");
-        this.cargos = new ArrayList<>();
-        this.pagos = new ArrayList<>();
-    }
-
-    public Folio(UUID id, UUID reservaId, List<Cargo> cargos, List<Pago> pagos) {
+    private Folio(UUID id, UUID reservaId, List<Cargo> cargos, List<Pago> pagos) {
         this.id = Objects.requireNonNull(id, "El ID del folio no puede ser nulo.");
         this.reservaId = Objects.requireNonNull(reservaId, "El ID de la reserva no puede ser nulo.");
         this.cargos = cargos != null ? new ArrayList<>(cargos) : new ArrayList<>();
         this.pagos = pagos != null ? new ArrayList<>(pagos) : new ArrayList<>();
+    }
+
+    /** Abre el folio vacío de una reserva nueva. */
+    public static Folio crear(UUID reservaId) {
+        return new Folio(UUID.randomUUID(), reservaId, List.of(), List.of());
+    }
+
+    /** Reconstruye un folio ya persistido con sus cargos y pagos. Solo para rehidratar desde la persistencia. */
+    public static Folio reconstruir(UUID id, UUID reservaId, List<Cargo> cargos, List<Pago> pagos) {
+        return new Folio(id, reservaId, cargos, pagos);
     }
 
     /**

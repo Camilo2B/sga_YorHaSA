@@ -5,15 +5,22 @@ import co.edu.uniquindio.sga.domain.valueobject.CanalOrigen;
 
 import java.util.Objects;
 
-public class CanalVenta {
+public final class CanalVenta {
 
-    private String identificacion;
-    private String nombre;
+    private final String identificacion;
+    private final String nombre;
     //El alojamiento vende por los 3 canales definidos
-    private CanalOrigen origen;
-    private Boolean activo;
+    private final CanalOrigen origen;
+    private final boolean activo;
 
-    public CanalVenta(String identificacion, String nombre, CanalOrigen origen, Boolean activo) {
+    private CanalVenta(String identificacion, String nombre, CanalOrigen origen, boolean activo) {
+        this.identificacion = identificacion;
+        this.nombre = nombre;
+        this.origen = origen;
+        this.activo = activo;
+    }
+
+    public static CanalVenta crear(String identificacion, String nombre, CanalOrigen origen, boolean activo) {
         if (identificacion == null) {
             throw new ReglaDominioException("El canal de venta debe tener una identificacion");
         }
@@ -27,10 +34,7 @@ public class CanalVenta {
             throw new ReglaDominioException("El canal de venta debe tener un tipo de origen");
 
         }
-        this.identificacion = identificacion;
-        this.nombre = nombre;
-        this.origen = origen;
-        this.activo = activo;
+        return new CanalVenta(identificacion, nombre, origen, activo);
     }
 
     //Falta metodo para que solo sea en tales canales de origen
@@ -56,7 +60,7 @@ public class CanalVenta {
     }
 
 
-    public Boolean getActivo() {
+    public boolean getActivo() {
         return activo;
     }
 

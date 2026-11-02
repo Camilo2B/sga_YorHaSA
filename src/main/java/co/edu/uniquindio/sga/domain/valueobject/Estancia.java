@@ -42,6 +42,15 @@ public record Estancia(LocalDate entrada, LocalDate salida) {
         return this.entrada.isBefore(otra.salida) && otra.entrada.isBefore(this.salida);
     }
 
+    /**
+     * RN-20: dos estancias son contiguas si una empieza el mismo día en que termina la otra (no comparten noches,
+     * pero el apartamento debe prepararse entre la salida de un grupo y la entrada del siguiente).
+     */
+    public boolean esContiguaA(Estancia otra) {
+        Objects.requireNonNull(otra, "La estancia a comparar no puede ser nula");
+        return this.salida.equals(otra.entrada) || otra.salida.equals(this.entrada);
+    }
+
     // RN-05: sirve para liquidar noche por noche, aplicando la tarifa vigente en cada una
     public List<LocalDate> nochesOcupadas() {
         List<LocalDate> resultado = new ArrayList<>();

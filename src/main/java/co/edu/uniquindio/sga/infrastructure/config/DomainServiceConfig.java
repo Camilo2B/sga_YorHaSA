@@ -7,6 +7,7 @@ import co.edu.uniquindio.sga.domain.service.CotizadorEstanciaService;
 import co.edu.uniquindio.sga.domain.service.CreacionReservaService;
 import co.edu.uniquindio.sga.domain.service.DisponibilidadApartamentoService;
 import co.edu.uniquindio.sga.domain.service.EntregaApartamentoService;
+import co.edu.uniquindio.sga.domain.service.GestionBloqueoService;
 import co.edu.uniquindio.sga.domain.service.RegistroApartamentoService;
 import co.edu.uniquindio.sga.domain.valueobject.DescuentoEstanciaProlongada;
 import co.edu.uniquindio.sga.domain.valueobject.Dinero;
@@ -29,19 +30,16 @@ import java.time.ZoneId;
 /**
  * Registra como beans los servicios de dominio (clases Java puras, que no conocen a Spring) y los parámetros de la
  * Ficha. Los valores salen de application.properties: cambiarlos no requiere recompilar.
- * Pendiente: GestionBloqueoService.
  */
 @Configuration
 @EnableConfigurationProperties(AlojamientoProperties.class)
 public class DomainServiceConfig {
 
-    /** 3.1: todas las fechas se manejan en la zona horaria de Colombia. */
     @Bean
     public Clock clock() {
         return Clock.system(ZoneId.of("America/Bogota"));
     }
 
-    /** Convierte las properties en objetos de valor validados: un valor inválido impide arrancar, con un mensaje claro. */
     @Bean
     public ParametrosAlojamiento parametrosAlojamiento(AlojamientoProperties propiedades) {
         return new ParametrosAlojamiento(
@@ -50,26 +48,24 @@ public class DomainServiceConfig {
                 new TiempoPreparacion(propiedades.tiempoPreparacionHoras()),
                 new PlazoConfirmacion(propiedades.plazoConfirmacionHoras()),
                 new HoraLimiteNoShow(LocalTime.parse(propiedades.horaLimiteNoShow())),
-                new PoliticaAnticipo(propiedades.exigeAnticipo(), propiedades.porcentajeAnticipo()));
+                new PoliticaAnticipo(propiedades.exigeAnticipo(), propiedades.porcentajeAnticipo())
+        );
     }
 
     @Bean
-    public RegistroApartamentoService registroApartamentoService(ApartamentoRepository apartamentoRepository) {
-        return new RegistroApartamentoService(apartamentoRepository);
-    }
-
-    /** RN-Propia-01: el descuento por estancia prolongada sale de la configuración, no del código. */
-    @Bean
-    public CotizadorEstanciaService cotizadorEstanciaService(AlojamientoProperties propiedades) {
-        return new CotizadorEstanciaService(new DescuentoEstanciaProlongada(
-                propiedades.nochesDescuentoEstanciaProlongada(),
-                propiedades.porcentajeDescuentoEstanciaProlongada()));
+    public DescuentoEstanciaProlongada descuentoEstanciaProlongada(AlojamientoProperties propiedades) {
+        return new DescuentoEstanciaProlongada(propiedades.nochesDescuentoEstanciaProlongada(), propiedades.porcentajeDescuentoEstanciaProlongada());
     }
 
     @Bean
     public DisponibilidadApartamentoService disponibilidadApartamentoService(ApartamentoRepository apartamentoRepository,
-                                                                              ReservaRepository reservaRepository) {
+                                                                             ReservaRepository reservaRepository) {
         return new DisponibilidadApartamentoService(apartamentoRepository, reservaRepository);
+    }
+
+    @Bean
+    public CotizadorEstanciaService cotizadorEstanciaService(DescuentoEstanciaProlongada descuentoEstanciaProlongada) {
+        return new CotizadorEstanciaService(descuentoEstanciaProlongada);
     }
 
     /** RN-Propia-02: el valor y la franja del recargo por llegada nocturna salen de la configuración. */
@@ -88,7 +84,19 @@ public class DomainServiceConfig {
     }
 
     @Bean
+    public RegistroApartamentoService registroApartamentoService(ApartamentoRepository apartamentoRepository,
+                                                                 ReservaRepository reservaRepository) {
+        return new RegistroApartamentoService(apartamentoRepository, reservaRepository);
+    }
+
+    @Bean
+    public GestionBloqueoService gestionBloqueoService(ReservaRepository reservaRepository) {
+        return new GestionBloqueoService(reservaRepository);
+    }
+
+    @Bean
     public EntregaApartamentoService entregaApartamentoService() {
         return new EntregaApartamentoService();
     }
+
 }

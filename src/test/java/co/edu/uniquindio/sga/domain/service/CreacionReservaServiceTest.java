@@ -69,7 +69,7 @@ class CreacionReservaServiceTest {
         Temporada base = alojamiento.temporadas().stream().filter(Temporada::esBase).findFirst().orElseThrow();
 
         apartamento = Apartamento.crear("ATK-001", "Attack Suite", 4,
-                List.of(new Dormitorio("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO);
+                List.of(new Dormitorio("Dormitorio 1", "Cama doble")), null, true, EstadoOperativo.PREPARADO);
         apartamento.definirTarifa(base.id(), Dinero.de(80_000), DESDE_SIEMPRE);
         apartamentoRepository.guardar(apartamento);
 
@@ -172,6 +172,16 @@ class CreacionReservaServiceTest {
         SolicitudReserva tresConMascota = solicitud(LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 3), dosAcompanantes, true, null);
 
         assertTrue(servicio.crear(alojamiento, apartamento, tresConMascota, AHORA).isConMascota());
+    }
+
+    @Test
+    @DisplayName("Creación: RN-Propia-03 un apartamento que no permite mascotas no recibe una reserva con mascota")
+    void rechazaMascotaSiElApartamentoNoLaPermite() {
+        Apartamento sinMascotas = Apartamento.crear("ATK-002", "Sin mascotas", 4,
+                List.of(new Dormitorio("Dormitorio 1", "Cama doble")), EstadoOperativo.PREPARADO);
+        SolicitudReserva conMascota = solicitud(LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 3), List.of(), true, null);
+
+        assertThrows(ReglaDominioException.class, () -> servicio.crear(alojamiento, sinMascotas, conMascota, AHORA));
     }
 
     @Test

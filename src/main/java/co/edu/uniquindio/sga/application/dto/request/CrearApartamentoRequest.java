@@ -28,6 +28,9 @@ public record CrearApartamentoRequest(
         List<DormitorioRequest> dormitorios,
 
         @NotNull(message = "El estado operativo inicial es obligatorio")
-        EstadoOperativo estadoOperativoInicial
+        EstadoOperativo estadoOperativoInicial,
+
+        // Si no se envía se asume false: el apartamento no recibe reservas con mascota (RN-Propia-03).
+        Boolean permiteMascotas
 ) {
 }

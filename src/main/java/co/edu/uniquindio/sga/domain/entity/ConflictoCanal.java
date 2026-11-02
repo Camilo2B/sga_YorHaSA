@@ -1,92 +1,99 @@
 package co.edu.uniquindio.sga.domain.entity;
 
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
-import co.edu.uniquindio.sga.domain.valueobject.EstadoOperativo;
+import co.edu.uniquindio.sga.domain.valueobject.CodigoReserva;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
-public class ConflictoCanal {
+/**
+ * RN-18: intento de reserva de un canal externo que choca con una reserva vigente. Referencia a la reserva vigente
+ * y al apartamento solo por su identificador; la reserva externa rechazada se identifica por su id en el canal.
+ */
+public final class ConflictoCanal {
 
-    private String id;
-    private Reserva reservaExterna;
-    private Reserva reservaVigente;
-    private Apartamento apartamentoid;
-    private LocalDateTime fechaHoraIntento;
-    private EstadoOperativo estadoRevision;
-    private String observacion;
+    private final UUID id;
+    private final String idReservaExterna;
+    private final CodigoReserva reservaVigente;
+    private final String apartamentoId;
+    private final LocalDateTime fechaHoraIntento;
+    private final String observacion;
+    private boolean revisado;
 
-    public ConflictoCanal(String id, Reserva reservaExterna, Reserva reservaVigente, Apartamento apartamentoid, LocalDateTime fechaHoraIntento,
-                          EstadoOperativo estadoRevision, String observacion) {
-        if (id == null) {
-            throw new ReglaDominioException("El id no puede ser vacio");
+    private ConflictoCanal(UUID id, String idReservaExterna, CodigoReserva reservaVigente, String apartamentoId,
+                           LocalDateTime fechaHoraIntento, String observacion, boolean revisado) {
+        this.id = id;
+        this.idReservaExterna = idReservaExterna;
+        this.reservaVigente = reservaVigente;
+        this.apartamentoId = apartamentoId;
+        this.fechaHoraIntento = fechaHoraIntento;
+        this.observacion = observacion;
+        this.revisado = revisado;
+    }
 
-        }
-        if (reservaExterna == null) {
+    public static ConflictoCanal registrar(String idReservaExterna, CodigoReserva reservaVigente, String apartamentoId,
+                                           LocalDateTime fechaHoraIntento, String observacion) {
+        if (idReservaExterna == null || idReservaExterna.isBlank()) {
             throw new ReglaDominioException("La reserva externa no puede ser vacia");
         }
-
         if (reservaVigente == null) {
             throw new ReglaDominioException("La reserva Vigente no puede ser vacia");
         }
-
-        if (apartamentoid == null) {
+        if (apartamentoId == null || apartamentoId.isBlank()) {
             throw new ReglaDominioException("El id del apartamento no puede ser vacio");
         }
-
         if (fechaHoraIntento == null) {
             throw new ReglaDominioException("La fecha y hora del intento no puede ser vacio");
         }
-
-        if (estadoRevision == null) {
-            throw new ReglaDominioException("El estado de la revisión no puede ser vacia");
-        }
-
         if (observacion == null) {
             throw new ReglaDominioException("La observación no puede ser vacia");
         }
-        this.id = id;
-        this.reservaExterna = reservaExterna;
-        this.reservaVigente = reservaVigente;
-        this.apartamentoid = apartamentoid;
-        this.fechaHoraIntento = fechaHoraIntento;
-        this.estadoRevision = estadoRevision;
-        this.observacion = observacion;
+        return new ConflictoCanal(UUID.randomUUID(), idReservaExterna, reservaVigente, apartamentoId, fechaHoraIntento,
+                observacion, false);
     }
 
-    public String getId() {
+    /** El conflicto fue revisado por el personal; no se puede revisar dos veces. */
+    public void marcarRevisado() {
+        if (revisado) {
+            throw new ReglaDominioException("El conflicto de canal ya fue revisado");
+        }
+        this.revisado = true;
+    }
+
+    public UUID getId() {
         return id;
     }
 
-    public Reserva getReservaExterna() {
-        return reservaExterna;
+    public String getIdReservaExterna() {
+        return idReservaExterna;
     }
 
-    public Reserva getReservaVigente() {
+    public CodigoReserva getReservaVigente() {
         return reservaVigente;
     }
 
-    public Apartamento getApartamentoid() {
-        return apartamentoid;
+    public String getApartamentoId() {
+        return apartamentoId;
     }
 
     public LocalDateTime getFechaHoraIntento() {
         return fechaHoraIntento;
     }
 
-    public EstadoOperativo getEstadoRevision() {
-        return estadoRevision;
-    }
-
     public String getObservacion() {
         return observacion;
+    }
+
+    public boolean isRevisado() {
+        return revisado;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof ConflictoCanal)) return false;
-        return Objects.equals(id, ((ConflictoCanal) o).id);
+        if (!(o instanceof ConflictoCanal otro)) return false;
+        return Objects.equals(id, otro.id);
     }
 
     @Override

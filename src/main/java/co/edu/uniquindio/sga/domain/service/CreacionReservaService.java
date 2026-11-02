@@ -25,8 +25,10 @@ import java.util.Objects;
  * <ul>
  *   <li>RN-04: la entrada no puede ser anterior a hoy. RN-03 ya la protege Estancia.</li>
  *   <li>3.2 / RN-06: el titular es siempre facturable; nadie puede aparecer dos veces.</li>
- *   <li>RN-02 y RN-Propia-03: los ocupantes (y la mascota, que ocupa un cupo) no pueden exceder la capacidad.</li>
- *   <li>RN-01 y RN-07: sin reservas activas solapadas ni bloqueos sobre esas noches.</li>
+ *   <li>RN-02 y RN-Propia-03: los ocupantes (y la mascota, que ocupa un cupo) no pueden exceder la capacidad, y con
+ *       mascota el apartamento debe permitir mascotas.</li>
+ *   <li>RN-01, RN-07 y RN-20: sin reservas activas solapadas ni bloqueos sobre esas noches, respetando el tiempo de
+ *       preparación entre la salida de un grupo y la entrada del siguiente.</li>
  *   <li>RN-05 y RN-Propia-01: el valor sale del cotizador.</li>
  *   <li>RN-Propia-02: una llegada nocturna estimada agrega su cargo al folio.</li>
  * </ul>
@@ -82,20 +84,15 @@ public class CreacionReservaService {
         }
 
         // RN-02 / RN-Propia-03: todos cuentan para la capacidad, y la mascota ocupa un cupo
-        int cuposNecesarios = ocupantes.size() + (solicitud.conMascota() ? 1 : 0);
-        if (cuposNecesarios > apartamento.capacidad()) {
-            throw new ReglaDominioException(solicitud.conMascota()
-                    ? "RN-02 / RN-Propia-03: " + ocupantes.size() + " ocupantes con mascota necesitan " + cuposNecesarios
-                    + " cupos y el apartamento " + apartamento.identificacion() + " solo tiene " + apartamento.capacidad()
-                    : "RN-02: " + ocupantes.size() + " ocupantes superan la capacidad de " + apartamento.capacidad()
-                    + " del apartamento " + apartamento.identificacion());
-        }
+        apartamento.verificarAdmiteGrupo(ocupantes.size(), solicitud.conMascota());
 
-        // RN-01 / RN-07: sin reservas activas solapadas ni bloqueos, y apartamento disponible para la venta
-        if (!disponibilidadService.estaDisponible(apartamento.identificacion(), estancia, cuposNecesarios)) {
-            throw new ReglaDominioException("RN-01 / RN-07: el apartamento " + apartamento.identificacion()
+        // RN-01 / RN-07 / RN-20: sin reservas activas solapadas ni bloqueos, y apartamento disponible para la venta
+        if (!disponibilidadService.estaDisponible(apartamento, estancia, ocupantes.size(), solicitud.conMascota(),
+                alojamiento.parametros())) {
+            throw new ReglaDominioException("RN-01 / RN-07 / RN-20: el apartamento " + apartamento.identificacion()
                     + " no está disponible del " + estancia.entrada() + " al " + estancia.salida()
-                    + " (tiene una reserva activa o un bloqueo en esas noches, o está retirado de la venta)");
+                    + " (tiene una reserva activa o un bloqueo en esas noches, no alcanza el tiempo de preparación"
+                    + " con otra reserva, o está retirado de la venta)");
         }
 
         // RN-05 / RN-Propia-01 y RN-22: el valor y la política quedan congelados

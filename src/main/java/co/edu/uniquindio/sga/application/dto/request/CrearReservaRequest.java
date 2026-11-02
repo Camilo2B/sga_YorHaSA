@@ -31,7 +31,7 @@ public record CrearReservaRequest(
         LocalTime horaEstimadaLlegada,
 
         // Si no se envía se asume false. Con mascota se ocupa un cupo del apartamento (RN-Propia-03).
-        boolean conMascota,
+        Boolean conMascota,
 
         @NotNull(message = "La reserva debe tener titular")
         @Valid
