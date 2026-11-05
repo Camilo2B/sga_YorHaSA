@@ -10,7 +10,41 @@ info:
     de página (content + page).
   version: 1.0.0
 
+security:
+  - bearerAuth: []
+
 paths:
+  /api/auth/login:
+    post:
+      summary: Iniciar sesión y obtener un token JWT
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Credenciales correctas. Devuelve el token JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Correo o contraseña con formato inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/reservas:
     post:
       summary: Crear una nueva reserva (CrearReservaUseCase)
@@ -1159,6 +1193,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   parameters:
     Page:
       name: page
@@ -1931,10 +1971,10 @@ components:
           type: string
           description: >-
             Código estable del tipo de error. VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA y
-            SOLICITUD_INVALIDA acompañan a un 400; NO_ENCONTRADO, a un 404; METODO_NO_PERMITIDO, a un 405;
+            SOLICITUD_INVALIDA acompañan a un 400; NO_AUTENTICADO, a un 401; ACCESO_DENEGADO, a un 403; NO_ENCONTRADO, a un 404; METODO_NO_PERMITIDO, a un 405;
             TIPO_NO_SOPORTADO, a un 415; REGLA_DOMINIO, a un 409; ERROR_INTERNO, a un 500 (sin detalles técnicos).
-          enum: [VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA, SOLICITUD_INVALIDA, NO_ENCONTRADO,
-                 METODO_NO_PERMITIDO, TIPO_NO_SOPORTADO, REGLA_DOMINIO, ERROR_INTERNO]
+          enum: [VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA, SOLICITUD_INVALIDA, NO_AUTENTICADO, ACCESO_DENEGADO,
+                 NO_ENCONTRADO, METODO_NO_PERMITIDO, TIPO_NO_SOPORTADO, REGLA_DOMINIO, ERROR_INTERNO]
           example: REGLA_DOMINIO
         mensaje:
           type: string
@@ -1945,3 +1985,36 @@ components:
           items:
             type: string
           example: ["capacidad: La capacidad debe ser al menos 1"]
+
+    LoginRequest:
+      type: object
+      required:
+        - correo
+        - contrasena
+      properties:
+        correo:
+          type: string
+          format: email
+          example: admin@sga.local
+        contrasena:
+          type: string
+          format: password
+          example: Admin2026
+
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT firmado para enviar en el encabezado Authorization.
+        tipo:
+          type: string
+          example: Bearer
+        expiraEn:
+          type: string
+          format: date-time
+        roles:
+          type: array
+          items:
+            type: string
+          example: [ ROLE_ADMINISTRADOR ]

@@ -28,6 +28,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.List;
 import java.util.stream.Stream;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+
 /**
  * Traduce cada excepción a su código HTTP en un único formato (ErrorResponse), sin trazas técnicas.
  * 400 = forma del mensaje inválida; 404 = recurso inexistente (capa de aplicación);
@@ -136,5 +139,20 @@ public class GlobalExceptionHandler {
         LOG.error("Error no controlado", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.de("ERROR_INTERNO", "Error interno del servidor"));
+    }
+
+    /** Seguridad (Guía 12): credenciales inválidas o usuario inactivo en el login. */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> manejarAutenticacion(AuthenticationException ex) {
+        // Mensaje genérico: no revela si el correo existe, si la contraseña era la errada o si la cuenta está inactiva
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.de("NO_AUTENTICADO", "Credenciales inválidas"));
+    }
+
+    /** Seguridad (Guía 12): autenticado, pero sin permiso por rol o por propietario. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> manejarAccesoDenegado(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse.de("ACCESO_DENEGADO", "No tiene permiso para realizar esta operación"));
     }
 }
