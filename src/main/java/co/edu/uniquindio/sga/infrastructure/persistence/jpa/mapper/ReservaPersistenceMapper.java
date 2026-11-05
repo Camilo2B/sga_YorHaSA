@@ -108,6 +108,10 @@ public class ReservaPersistenceMapper {
     }
 
     private static OcupanteEmbeddable toEmbeddable(Ocupante ocupante) {
-        return new OcupanteEmbeddable(ocupante.documento(), ocupante.nombre(), ocupante.fechaNacimiento());
+        return new OcupanteEmbeddable(
+                ocupante.documento().numero(), // Se accede al String interno mediante .numero()
+                ocupante.nombre(),
+                ocupante.fechaNacimiento()
+        );
     }
 }

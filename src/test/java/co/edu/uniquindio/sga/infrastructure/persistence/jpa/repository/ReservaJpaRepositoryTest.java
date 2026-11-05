@@ -118,7 +118,7 @@ class ReservaJpaRepositoryTest {
         assertEquals("ATK-001", leida.getApartamentoId());
         assertEquals(EstadoReserva.CONFIRMADA, leida.getEstado());
         assertEquals(CanalOrigen.PORTAL, leida.getCanalOrigen());
-        assertEquals("1094123456", leida.getTitular().documento());
+        assertEquals("1094123456", leida.getTitular().documento().numero()); // <-- Corregido aquí con .numero()
         assertEquals(LocalDate.of(1990, 5, 15), leida.getTitular().fechaNacimiento());
         assertEquals(original.getEstancia(), leida.getEstancia());
         assertEquals(new VersionPolitica(1, LocalDate.of(2026, 1, 1)), leida.getVersionPolitica());

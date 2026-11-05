@@ -72,7 +72,7 @@ public interface ReservaMapper {
     }
 
     default OcupanteResponse toOcupanteResponse(Ocupante ocupante) {
-        return new OcupanteResponse(ocupante.documento(), ocupante.nombre(), ocupante.fechaNacimiento());
+        return new OcupanteResponse(ocupante.documento().numero(), ocupante.nombre(), ocupante.fechaNacimiento());
     }
 
     default ReservaResumenResponse toResumenResponse(Reserva reserva) {

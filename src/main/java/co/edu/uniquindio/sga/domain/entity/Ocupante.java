@@ -1,35 +1,26 @@
 package co.edu.uniquindio.sga.domain.entity;
 
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
+import co.edu.uniquindio.sga.domain.valueobject.DocumentoIdentidad;
 
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Objects;
 
 /**
- * 3.2 - Persona incluida en una reserva, con su fecha de nacimiento (nunca
+ * Persona incluida en una reserva, con su fecha de nacimiento (nunca
  * su edad: la edad se calcula, nunca se almacena).
- * <p>
  * Entidad: dos ocupantes con los mismos datos son distintos; interesa su
  * historia (puede aparecer en varias reservas a lo largo del tiempo).
- * <p>
- * El constructor es de paquete (sin modificador), no estrictamente privado,
- * porque Titular extiende esta clase y necesita invocar super(...). Ninguna
- * clase fuera de domain.entity puede construir un Ocupante de todas formas
- * -ni siquiera con reflexión "normal" desde application/infrastructure-,
- * así que la intención de la rúbrica ("sin construcción externa arbitraria")
- * se mantiene igual.
  */
 public class Ocupante {
 
-    private final String documento;
+    private final DocumentoIdentidad documento;
     private final String nombre;
     private final LocalDate fechaNacimiento;
 
-    Ocupante(String documento, String nombre, LocalDate fechaNacimiento) {
-        if (documento == null || documento.isBlank()) {
-            throw new ReglaDominioException("El documento del ocupante no puede estar vacío");
-        }
+    Ocupante(DocumentoIdentidad documento, String nombre, LocalDate fechaNacimiento) {
+        Objects.requireNonNull(documento, "El documento de identidad no puede ser nulo");
         if (nombre == null || nombre.isBlank()) {
             throw new ReglaDominioException("El nombre del ocupante no puede estar vacío");
         }
@@ -39,8 +30,8 @@ public class Ocupante {
         this.fechaNacimiento = fechaNacimiento;
     }
 
-    public static Ocupante crear(String documento, String nombre, LocalDate fechaNacimiento) {
-        return new Ocupante(documento, nombre, fechaNacimiento);
+    public static Ocupante crear(String numeroDocumento, String nombre, LocalDate fechaNacimiento) {
+        return new Ocupante(new DocumentoIdentidad(numeroDocumento), nombre, fechaNacimiento);
     }
 
     /**
@@ -59,15 +50,13 @@ public class Ocupante {
     /**
      * RN-06: un ocupante es facturable si, a la fecha de entrada de la
      * estancia, su edad alcanza o supera el umbral configurado del
-     * alojamiento. Un ocupante que cumple años durante la estancia no
-     * cambia de condición a mitad de camino -por eso se evalúa siempre
-     * contra la fecha de ENTRADA, nunca la de salida ni la actual-.
+     * alojamiento.
      */
     public boolean esFacturable(LocalDate fechaEntrada, int umbralEdadFacturable) {
         return calcularEdad(fechaEntrada) >= umbralEdadFacturable;
     }
 
-    public String documento() {
+    public DocumentoIdentidad documento() {
         return documento;
     }
 

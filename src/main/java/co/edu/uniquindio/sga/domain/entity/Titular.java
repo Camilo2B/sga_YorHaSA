@@ -1,5 +1,7 @@
 package co.edu.uniquindio.sga.domain.entity;
 
+import co.edu.uniquindio.sga.domain.valueobject.DocumentoIdentidad;
+
 import java.time.LocalDate;
 
 /**
@@ -16,11 +18,11 @@ import java.time.LocalDate;
  */
 public final class Titular extends Ocupante {
 
-    private Titular(String documento, String nombre, LocalDate fechaNacimiento) {
+    private Titular(DocumentoIdentidad documento, String nombre, LocalDate fechaNacimiento) {
         super(documento, nombre, fechaNacimiento);
     }
 
-    public static Titular crear(String documento, String nombre, LocalDate fechaNacimiento) {
-        return new Titular(documento, nombre, fechaNacimiento);
+    public static Titular crear(String numeroDocumento, String nombre, LocalDate fechaNacimiento) {
+        return new Titular(new DocumentoIdentidad(numeroDocumento), nombre, fechaNacimiento);
     }
 }
