@@ -38,3 +38,12 @@ out/
 
 ### SGA / Secretos Locales ###
 application-secrets.properties
+
+# Dependencias
+node_modules/
+
+# Entorno y logs
+.env
+dist/
+build/
+.DS_Store

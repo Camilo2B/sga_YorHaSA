@@ -6,26 +6,27 @@ import Inicio from './paginas/Inicio';
 import Login from './paginas/Login';
 import NoEncontrada from './paginas/NoEncontrada';
 import Registro from './paginas/Registro';
-
+import NuevaReserva from './paginas/NuevaReserva';
+import Cotizacion from './paginas/Cotizacion';
 
 export default function App() {
-  return (
-      <>
-        <Encabezado nombreAlojamiento="Bunker Orbital YorHa S.A" />
+    return (
+        <>
+            <Encabezado nombreAlojamiento="Bunker Orbital YorHa S.A" />
 
+            <main>
+                <Routes>
+                    <Route path="/" element={<Inicio />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/registro" element={<Registro />} />
+                    <Route path="/apartamentos/:identificacion" element={<DetalleApartamento />} />
+                    <Route path="/reservas/nueva" element={<NuevaReserva />} />
+                    <Route path="/cotizaciones" element={<Cotizacion />} />
+                    <Route path="*" element={<NoEncontrada />} />
+                </Routes>
+            </main>
 
-        <main>
-          <Routes>
-            <Route path="/" element={<Inicio />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/registro" element={<Registro />} />
-            <Route path="/apartamentos/:identificacion" element={<DetalleApartamento />} />
-            <Route path="*" element={<NoEncontrada />} />
-          </Routes>
-        </main>
-
-
-        <PiePagina />
-      </>
-  );
+            <PiePagina />
+        </>
+    );
 }
