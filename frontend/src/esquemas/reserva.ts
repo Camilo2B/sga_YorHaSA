@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { hoyISO } from '../utilidades/fechas';
 
-const esquemaOcupante = z.object({
-    // Misma condición que @DocumentoValido (Guía 08): solo letras y números
+// Compartido con la cotización: ambos envían ocupantes con el mismo formato (OcupanteRequest).
+export const esquemaOcupante = z.object({
+    // Misma condición que OcupanteRequest del backend: letras y números, de 7 a 11 caracteres
     documento: z
         .string()
         .min(1, 'Ingrese el documento')
-        .regex(/^[A-Za-z0-9]+$/, 'El documento solo admite letras y números'),
+        .regex(/^[A-Za-z0-9]+$/, 'El documento solo admite letras y números')
+        .min(7, 'El documento debe tener entre 7 y 11 caracteres')
+        .max(11, 'El documento debe tener entre 7 y 11 caracteres'),
     nombre: z.string().trim().min(1, 'Ingrese el nombre'),
     fechaNacimiento: z
         .iso.date('Ingrese la fecha de nacimiento')

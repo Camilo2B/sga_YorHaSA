@@ -17,3 +17,12 @@ body {
   font-size: 0.875rem;
   margin: 0.25rem 0;
 }
+
+header nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+}

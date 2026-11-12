@@ -2,6 +2,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useFieldArray, useForm, type Path } from 'react-hook-form';
+import { useSearchParams } from 'react-router';
 import { esquemaNuevaReserva, type FormularioNuevaReserva } from '../esquemas/reserva';
 import type { CrearReservaRequest } from '../modelos/reserva';
 import { crearReserva } from '../servicios/reservaServicio';
@@ -23,7 +24,18 @@ function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
     };
 }
 
+// El backend numera los acompañantes desde 0 (ocupantes[0] es el primer acompañante) y el titular va aparte;
+// en el formulario el titular es el ocupante 0, así que los acompañantes se corren un lugar.
+function aRutaDelFormulario(campo: string): string {
+    if (campo.startsWith('titular.')) {
+        return campo.replace(/^titular\./, 'ocupantes.0.');
+    }
+    return campo.replace(/^ocupantes\.(\d+)/, (_, indice: string) => `ocupantes.${Number(indice) + 1}`);
+}
+
 export default function NuevaReserva() {
+    // /reservas/nueva?apartamento=ATK-001 deja el apartamento ya escrito
+    const [parametros] = useSearchParams();
     const [codigoCreado, setCodigoCreado] = useState<string | null>(null);
     const {
         register,
@@ -36,7 +48,7 @@ export default function NuevaReserva() {
         resolver: zodResolver(esquemaNuevaReserva),
         mode: 'onTouched',
         defaultValues: {
-            identificacionApartamento: '',
+            identificacionApartamento: parametros.get('apartamento') ?? '',
             fechaEntrada: '',
             fechaSalida: '',
             horaEstimadaLlegada: '',
@@ -58,8 +70,7 @@ export default function NuevaReserva() {
             const camposError = erroresDeCampo(error);
             if (Object.keys(camposError).length > 0) {
                 for (const [campo, mensaje] of Object.entries(camposError)) {
-                    const ruta = campo.replace(/^titular\./, 'ocupantes.0.');
-                    setError(ruta as Path<FormularioNuevaReserva>, { message: mensaje });
+                    setError(aRutaDelFormulario(campo) as Path<FormularioNuevaReserva>, { message: mensaje });
                 }
             } else {
                 // Si el 400 no especifica campos concretos, mostramos el mensaje general del servidor

@@ -26,7 +26,7 @@ export interface CrearReservaRequest {
     canalOrigen: CanalOrigen;
     horaEstimadaLlegada: string | null;   // LocalTime: "16:30". Opcional al crear (RN-09)
     titular: OcupanteRequest;
-    ocupantes: OcupanteRequest[];         // Incluye al titular
+    ocupantes: OcupanteRequest[];         // Acompañantes del titular: el titular va aparte y NO se repite aquí
 }
 
 /** Espejo de: record OcupanteResponse(String documento, String nombre, LocalDate fechaNacimiento) */

@@ -3,7 +3,10 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { esquemaRegistro, type FormularioRegistro } from '../esquemas/registro';
 import { registrar } from '../servicios/authServicio';
-import { mensajeDeError } from '../utilidades/errores';
+import { erroresDeCampo, mensajeDeError } from '../utilidades/errores';
+
+// Campos del formulario que el backend puede señalar en un 400 (nombres idénticos al DTO)
+const CAMPOS = ['nombre', 'correo', 'documento', 'telefono', 'fechaNacimiento', 'contrasena'] as const;
 
 export default function Registro() {
     const navigate = useNavigate();
@@ -33,9 +36,18 @@ export default function Registro() {
             await registrar(datosBackend);
             navigate('/login'); // Redirige al login tras un registro exitoso
         } catch (error) {
-            setError('root.servidor', {
-                message: mensajeDeError(error),
-            });
+            // 400: el backend dice qué campo falló y se muestra junto a ese campo
+            const deCampo = Object.entries(erroresDeCampo(error)).filter(([campo]) =>
+                (CAMPOS as readonly string[]).includes(campo),
+            );
+            if (deCampo.length > 0) {
+                for (const [campo, mensaje] of deCampo) {
+                    setError(campo as (typeof CAMPOS)[number], { message: mensaje });
+                }
+            } else {
+                // 409 (correo o documento ya registrados) u otro error: mensaje general del servidor
+                setError('root.servidor', { message: mensajeDeError(error) });
+            }
         }
     }
 

@@ -1,4 +1,6 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { useSesion } from '../hooks/useSesion';
+import { borrarSesion } from '../servicios/sesion';
 
 
 interface EncabezadoProps {
@@ -7,16 +9,33 @@ interface EncabezadoProps {
 
 
 export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
+    const navigate = useNavigate();
+    const { sesion, autenticado, tieneRol } = useSesion();
+
+    // Mismos roles que acepta POST /api/reservas en el backend (@PreAuthorize de ReservaController.crear)
+    const puedeReservar = tieneRol('HUESPED', 'RECEPCIONISTA', 'ADMINISTRADOR');
+
+    function cerrarSesion() {
+        borrarSesion();
+        navigate('/login');
+    }
+
     return (
         <header>
             <p>{nombreAlojamiento}</p>
             <nav>
                 <ul>
                     <li><Link to="/">Inicio</Link></li>
-                    <li><Link to="/login">Ingresar</Link></li>
-                    <li><Link to="/registro">Registrarse</Link></li>
-                    <li><Link to="/reservas/nueva">Nueva reserva</Link></li>
-                    <Link to="/cotizaciones">Cotizar</Link>
+                    {autenticado && <li><Link to="/cotizaciones">Cotizar</Link></li>}
+                    {puedeReservar && <li><Link to="/reservas/nueva">Nueva reserva</Link></li>}
+                    {!autenticado && <li><Link to="/login">Ingresar</Link></li>}
+                    {!autenticado && <li><Link to="/registro">Registrarse</Link></li>}
+                    {sesion && (
+                        <>
+                            <li>Sesión: {sesion.roles.join(', ')}</li>
+                            <li><button type="button" onClick={cerrarSesion}>Cerrar sesión</button></li>
+                        </>
+                    )}
                 </ul>
             </nav>
         </header>

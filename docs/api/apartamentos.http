@@ -1,8 +1,70 @@
 ### Recorrido del apartamento. Con la aplicación corriendo en http://localhost:8080
 ### (en IntelliJ: abrir este archivo y pulsar el triángulo verde de cada petición)
 
+### ---------------- Inicio de sesión (ejecutar primero) ----------------
+### Todos los endpoints, salvo el login y el registro, exigen un token JWT. Estas cinco peticiones inician sesión con los
+### usuarios de prueba que carga la aplicación al arrancar (application.properties) y dejan los tokens en variables:
+### tokenAdmin, tokenRecepcion, tokenServicio, tokenHuesped1 y tokenHuesped2. Cada token dura 60 minutos: si una prueba
+### responde 401 inesperadamente, volver a ejecutar estas cinco.
+
+### 0a) Administrador -> 200 OK (guarda su token en tokenAdmin)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "admin@sga.local",
+  "contrasena": "Admin2026"
+}
+
+> {% client.global.set("tokenAdmin", response.body.token); %}
+
+### 0b) Recepcionista -> 200 OK (guarda su token en tokenRecepcion)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "recepcion@sga.local",
+  "contrasena": "Recepcion2026"
+}
+
+> {% client.global.set("tokenRecepcion", response.body.token); %}
+
+### 0c) Personal de servicio -> 200 OK (guarda su token en tokenServicio)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "servicio@sga.local",
+  "contrasena": "Servicio2026"
+}
+
+> {% client.global.set("tokenServicio", response.body.token); %}
+
+### 0d) Huésped 1 (Laura Gomez, documento 1094000111) -> 200 OK (guarda su token en tokenHuesped1)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "huesped1@sga.local",
+  "contrasena": "Huesped2026"
+}
+
+> {% client.global.set("tokenHuesped1", response.body.token); %}
+
+### 0e) Huésped 2 (Andres Rios, documento 1094000222) -> 200 OK (guarda su token en tokenHuesped2)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "huesped2@sga.local",
+  "contrasena": "Huesped2026"
+}
+
+> {% client.global.set("tokenHuesped2", response.body.token); %}
+
 ### 1) Crear un apartamento -> 201 Created + encabezado Location: /api/apartamentos/TST-001 (los 15 apartamentos de la Ficha ya existen al arrancar)
 POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -18,9 +80,11 @@ Content-Type: application/json
 
 ### 2) Consultarlo -> 200 OK
 GET http://localhost:8080/api/apartamentos/TST-001
+Authorization: Bearer {{tokenAdmin}}
 
 ### 3) Crear uno con una identificación que ya existe (ATK-001, de la Ficha) -> 409 Conflict (regla L-04: identificación única)
 POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -33,6 +97,7 @@ Content-Type: application/json
 
 ### 4) Capacidad 0 -> 400 Bad Request (la forma del mensaje es inválida, @Min(1))
 POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -45,6 +110,7 @@ Content-Type: application/json
 
 ### 5) Estado operativo que no existe -> 400 Bad Request (JSON con valor no permitido)
 POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -57,14 +123,17 @@ Content-Type: application/json
 
 ### 6) Apartamento que no existe -> 404 Not Found
 GET http://localhost:8080/api/apartamentos/NO-EXISTE
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Alojamiento (se carga solo al arrancar) ----------------
 
 ### 7) Consultar el alojamiento -> 200 OK (parámetros de application.properties, temporada base y política v1)
 GET http://localhost:8080/api/alojamiento
+Authorization: Bearer {{tokenAdmin}}
 
 ### 8) Registrar una temporada -> 201 Created + Location (el script guarda su id para la prueba 19)
 POST http://localhost:8080/api/alojamiento/temporadas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -77,6 +146,7 @@ Content-Type: application/json
 
 ### 9) Una temporada que se solapa con la anterior -> 409 Conflict
 POST http://localhost:8080/api/alojamiento/temporadas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -87,6 +157,7 @@ Content-Type: application/json
 
 ### 10) Fechas invertidas -> 409 Conflict (regla de dominio: la fecha de fin debe ser posterior a la fecha de inicio)
 POST http://localhost:8080/api/alojamiento/temporadas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -97,6 +168,7 @@ Content-Type: application/json
 
 ### 11) Nombre vacío -> 400 Bad Request
 POST http://localhost:8080/api/alojamiento/temporadas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -107,22 +179,27 @@ Content-Type: application/json
 
 ### 12) Identificador que no es UUID -> 400 Bad Request
 GET http://localhost:8080/api/alojamiento/temporadas/no-es-un-uuid
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Tarifas (los 15 apartamentos nacen con una tarifa por temporada) ----------------
 
 ### 13) Leer el alojamiento y guardar los ids de sus temporadas (el script los deja en variables)
 GET http://localhost:8080/api/alojamiento
+Authorization: Bearer {{tokenAdmin}}
 
 > {% client.global.set("temporadaBaseId", response.body.temporadas.find(t => t.esBase).id); %}
 
 ### 14) Histórico de tarifas del apartamento -> 200 OK (una tarifa por temporada, de la Ficha)
 GET http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 
 ### 15) Histórico de una sola temporada -> 200 OK
 GET http://localhost:8080/api/apartamentos/ATK-001/tarifas?temporadaId={{temporadaBaseId}}
+Authorization: Bearer {{tokenAdmin}}
 
 ### 16) Subir la tarifa base desde una fecha futura -> 201 Created + Location (el histórico conserva la anterior)
 POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -133,6 +210,7 @@ Content-Type: application/json
 
 ### 17) Una tarifa que no rige después de la más reciente -> 409 Conflict
 POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -143,6 +221,7 @@ Content-Type: application/json
 
 ### 18) Valor en cero -> 400 Bad Request
 POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -153,6 +232,7 @@ Content-Type: application/json
 
 ### 19) Tarifa para la temporada registrada en la prueba 8 -> 201 Created (ejecutar antes la 8)
 POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -163,6 +243,7 @@ Content-Type: application/json
 
 ### 20) Temporada que no existe -> 404 Not Found
 POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -173,17 +254,21 @@ Content-Type: application/json
 
 ### 21) Apartamento que no existe -> 404 Not Found
 GET http://localhost:8080/api/apartamentos/NO-EXISTE/tarifas
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Política de cancelación ----------------
 
 ### 22) Todas las versiones -> 200 OK (al arrancar solo existe la versión 1 de la Ficha)
 GET http://localhost:8080/api/alojamiento/politica-cancelacion
+Authorization: Bearer {{tokenAdmin}}
 
 ### 23) Consultar la versión 1 -> 200 OK
 GET http://localhost:8080/api/alojamiento/politica-cancelacion/1
+Authorization: Bearer {{tokenAdmin}}
 
 ### 24) Definir una nueva versión -> 201 Created + Location: /api/alojamiento/politica-cancelacion/2
 POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -197,6 +282,7 @@ Content-Type: application/json
 
 ### 25) Vigencia que no es posterior a la versión más reciente -> 409 Conflict
 POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -209,6 +295,7 @@ Content-Type: application/json
 
 ### 26) Un solo tramo -> 409 Conflict (7.4: mínimo dos tramos)
 POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -220,6 +307,7 @@ Content-Type: application/json
 
 ### 27) Sin tramo de 0 horas -> 409 Conflict
 POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -232,6 +320,7 @@ Content-Type: application/json
 
 ### 28) Retención mayor a 1 -> 400 Bad Request
 POST http://localhost:8080/api/alojamiento/politica-cancelacion
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -244,12 +333,14 @@ Content-Type: application/json
 
 ### 29) Versión que no existe -> 404 Not Found
 GET http://localhost:8080/api/alojamiento/politica-cancelacion/99
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Cotizaciones (RN-05, RN-06 y RN-Propia-01) ----------------
 
 ### 30) 2 noches en temporada Media, 2 adultos y 1 niña de 7 años -> 200 OK. La niña no se factura:
 ###     2 noches x 100.000 x 2 adultos = valorTotal 400000
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -266,6 +357,7 @@ Content-Type: application/json
 ### 31) 5 noches cruzando de Media a Alta: descuento del 10% en cada noche -> 200 OK
 ###     (2 x 90.000 + 3 x 112.500) x 2 adultos = valorTotal 1035000
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -280,6 +372,7 @@ Content-Type: application/json
 
 ### 32) Salida igual a la entrada -> 409 Conflict (RN-03)
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -293,6 +386,7 @@ Content-Type: application/json
 
 ### 33) Solo menores de 12 años -> 409 Conflict (no hay ocupantes facturables)
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -306,6 +400,7 @@ Content-Type: application/json
 
 ### 34) Apartamento sin tarifa para la temporada (TST-001, creado en la prueba 1, no tiene tarifas) -> 409 Conflict
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -319,6 +414,7 @@ Content-Type: application/json
 
 ### 35) Apartamento que no existe -> 404 Not Found
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -332,6 +428,7 @@ Content-Type: application/json
 
 ### 36) Sin ocupantes -> 400 Bad Request
 POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -346,6 +443,7 @@ Content-Type: application/json
 ### 37) Crear una reserva de 5 noches con 1 acompañante -> 201 Created + Location. El script guarda el código.
 ###     Valor esperado: (2 x 90.000 + 3 x 112.500) x 2 ocupantes = valorTotal 1035000, estado PENDIENTE, versión v1
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -364,9 +462,11 @@ Content-Type: application/json
 
 ### 38) Consultar la reserva creada -> 200 OK
 GET http://localhost:8080/api/reservas/{{codigoReserva}}
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 39) Se solapa con la reserva de la prueba 37 -> 409 Conflict (RN-01)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -380,6 +480,7 @@ Content-Type: application/json
 
 ### 40) Empieza el día de salida de la anterior (la noche de salida no se ocupa) -> 201 Created
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -393,6 +494,7 @@ Content-Type: application/json
 
 ### 41) Llegada nocturna (23:30): suma el recargo de 30.000 al folio -> 201 Created, totalCargosFolio = valorTotal + 30000
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -407,6 +509,7 @@ Content-Type: application/json
 
 ### 42) Con mascota: 4 ocupantes + mascota superan la capacidad de 4 de ATK-001 -> 409 Conflict (RN-Propia-03)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -425,6 +528,7 @@ Content-Type: application/json
 
 ### 43) Cinco ocupantes en un apartamento de 4 -> 409 Conflict (RN-02)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -443,6 +547,7 @@ Content-Type: application/json
 
 ### 44) Entrada anterior a hoy -> 409 Conflict (RN-04)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -456,6 +561,7 @@ Content-Type: application/json
 
 ### 45) Titular menor de 12 años -> 409 Conflict (3.2)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -469,6 +575,7 @@ Content-Type: application/json
 
 ### 46) Salida igual a la entrada -> 409 Conflict (RN-03)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -482,6 +589,7 @@ Content-Type: application/json
 
 ### 47) Apartamento sin tarifa para la temporada (TST-001, creado en la prueba 1) -> 409 Conflict
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -495,6 +603,7 @@ Content-Type: application/json
 
 ### 48) Apartamento que no existe -> 404 Not Found
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -508,6 +617,7 @@ Content-Type: application/json
 
 ### 49) Sin titular -> 400 Bad Request
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -520,6 +630,7 @@ Content-Type: application/json
 
 ### 50) Canal de origen inválido -> 400 Bad Request
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -533,9 +644,11 @@ Content-Type: application/json
 
 ### 51) Código de reserva que no existe -> 404 Not Found
 GET http://localhost:8080/api/reservas/RES-2026-99999
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 52) Código con formato inválido -> 404 Not Found
 GET http://localhost:8080/api/reservas/ABC
+Authorization: Bearer {{tokenRecepcion}}
 
 ### ---------------- Confirmar y cancelar reservas ----------------
 ### (Las fechas son de 2026: las pruebas dependen de que la fecha de entrada no haya pasado y de la antelación de cada cancelación.
@@ -543,6 +656,7 @@ GET http://localhost:8080/api/reservas/ABC
 
 ### 53) Reserva con hora de llegada diurna (ATK-002, Media: 2 noches x 135.000 = valorTotal 270000). Guarda el código.
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -559,9 +673,11 @@ Content-Type: application/json
 
 ### 54) Confirmar sin medio de pago: el anticipo del 50% (135.000) lo exige -> 409 Conflict
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 55) Confirmar pagando el anticipo -> 200 OK, estado CONFIRMADA, anticipo de 135000 en el folio
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -571,6 +687,7 @@ Content-Type: application/json
 
 ### 56) Confirmar de nuevo -> 409 Conflict (RN-08: ya no está PENDIENTE)
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -579,6 +696,7 @@ Content-Type: application/json
 
 ### 57) La reserva de la prueba 37 se creó sin hora de llegada: no se puede confirmar -> 409 Conflict (RN-09)
 PUT http://localhost:8080/api/reservas/{{codigoReserva}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -588,6 +706,7 @@ Content-Type: application/json
 ### 58) Confirmarla enviando la hora (23:30, recargo nocturno) y el anticipo -> 200 OK
 ###     Anticipo: 50% de 1.035.000 = 517500 pagados; totalCargosFolio = 1065000 (1.035.000 + 30.000 de recargo)
 PUT http://localhost:8080/api/reservas/{{codigoReserva}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -599,6 +718,7 @@ Content-Type: application/json
 ### 59) Cancelarla con más de 7 días de antelación -> 200 OK, CANCELADA, retenidoPorCancelacion 0 y devueltoPorCancelacion 517500
 ###     (si se ejecuta con menos de 7 días antes del 13 de diciembre de 2026, la retención cambia según la política v1)
 PUT http://localhost:8080/api/reservas/{{codigoReserva}}/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -607,6 +727,7 @@ Content-Type: application/json
 
 ### 60) Cancelar de nuevo -> 409 Conflict (RN-08)
 PUT http://localhost:8080/api/reservas/{{codigoReserva}}/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -615,6 +736,7 @@ Content-Type: application/json
 
 ### 61) Cancelar sin motivo -> 400 Bad Request
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -623,6 +745,7 @@ Content-Type: application/json
 
 ### 62) Cancelar una reserva que no existe -> 404 Not Found
 PUT http://localhost:8080/api/reservas/RES-2026-99999/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -631,6 +754,7 @@ Content-Type: application/json
 
 ### 63) Cancelar con código mal formado -> 404 Not Found
 PUT http://localhost:8080/api/reservas/ABC/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -639,6 +763,7 @@ Content-Type: application/json
 
 ### 64) RN-12: la reserva cancelada liberó sus noches; las mismas fechas de la prueba 37 ya se pueden reservar -> 201 Created
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -652,6 +777,7 @@ Content-Type: application/json
 
 ### 65) Cancelar la reserva confirmada de la prueba 53 -> 200 OK (con más de 7 días de antelación se devuelve el 100% del anticipo: 135000)
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -669,6 +795,7 @@ Content-Type: application/json
     request.variables.set("hoy", f(0)); request.variables.set("manana", f(1)); request.variables.set("pasadoManana", f(2));
 %}
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -685,9 +812,11 @@ Content-Type: application/json
 
 ### 67) Registrar la llegada sin haber confirmado -> 409 Conflict (RN-10: debe estar CONFIRMADA)
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-llegada
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 68) Confirmar pagando el anticipo -> 200 OK
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -696,26 +825,33 @@ Content-Type: application/json
 
 ### 69) Registrar la salida sin haber llegado -> 409 Conflict (no está EN_CURSO)
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-salida
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 70) Registrar la llegada -> 200 OK: reserva EN_CURSO y el apartamento OCUPADO
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-llegada
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 71) El apartamento quedó OCUPADO -> 200 OK (estadoOperativo OCUPADO)
 GET http://localhost:8080/api/apartamentos/ATK-001
+Authorization: Bearer {{tokenAdmin}}
 
 ### 72) Registrar la llegada otra vez -> 409 Conflict (ya está EN_CURSO)
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-llegada
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 73) La salida con saldo pendiente -> 409 Conflict (RN-17: el anticipo cubre solo el 50%)
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-salida
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 74) Consultar el folio -> 200 OK. Guarda el saldo pendiente para pagarlo
 GET http://localhost:8080/api/reservas/{{codigoHoy}}/folio
+Authorization: Bearer {{tokenRecepcion}}
 
 > {% client.global.set("saldoFolio", response.body.saldoPendiente); %}
 
 ### 75) Un pago por más que el saldo -> 409 Conflict (RN-15: no se paga de más)
 POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -725,6 +861,7 @@ Content-Type: application/json
 
 ### 76) Un pago en cero -> 400 Bad Request
 POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -734,6 +871,7 @@ Content-Type: application/json
 
 ### 77) Pagar el saldo exacto -> 201 Created + Location: /api/reservas/{codigo}/folio, saldoPendiente 0
 POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -744,9 +882,11 @@ Content-Type: application/json
 
 ### 78) Registrar la salida con el folio en paz y salvo -> 200 OK: FINALIZADA y apartamento PENDIENTE_PREPARACION
 PUT http://localhost:8080/api/reservas/{{codigoHoy}}/registrar-salida
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 79) Un pago en una reserva ya finalizada -> 409 Conflict
 POST http://localhost:8080/api/reservas/{{codigoHoy}}/folio/pagos
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -756,6 +896,7 @@ Content-Type: application/json
 
 ### 80) Folio de una reserva que no existe -> 404 Not Found
 GET http://localhost:8080/api/reservas/RES-2026-99999/folio
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 81) Otra reserva que entra hoy en ATK-001 (la anterior ya finalizó y sus noches están libres) -> 201 Created
 < {%
@@ -764,6 +905,7 @@ GET http://localhost:8080/api/reservas/RES-2026-99999/folio
     request.variables.set("hoy", f(0)); request.variables.set("manana", f(1)); request.variables.set("pasadoManana", f(2));
 %}
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -780,6 +922,7 @@ Content-Type: application/json
 
 ### 82) Confirmarla -> 200 OK
 PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -788,24 +931,31 @@ Content-Type: application/json
 
 ### 83) Registrar la llegada con el apartamento sin preparar -> 409 Conflict (RN-11: está PENDIENTE_PREPARACION)
 PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/registrar-llegada
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 84) Marcarlo preparado sin haber iniciado la preparación -> 409 Conflict
 PUT http://localhost:8080/api/apartamentos/ATK-001/marcar-preparado
+Authorization: Bearer {{tokenServicio}}
 
 ### 85) El personal empieza a prepararlo -> 200 OK (EN_PREPARACION)
 PUT http://localhost:8080/api/apartamentos/ATK-001/iniciar-preparacion
+Authorization: Bearer {{tokenServicio}}
 
 ### 86) Todavía en preparación: la llegada sigue siendo 409 Conflict (RN-11)
 PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/registrar-llegada
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 87) Lo deja listo -> 200 OK (PREPARADO)
 PUT http://localhost:8080/api/apartamentos/ATK-001/marcar-preparado
+Authorization: Bearer {{tokenServicio}}
 
 ### 88) Ahora sí se registra la llegada -> 200 OK
 PUT http://localhost:8080/api/reservas/{{codigoSegundo}}/registrar-llegada
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 89) Iniciar la preparación de un apartamento que no existe -> 404 Not Found
 PUT http://localhost:8080/api/apartamentos/NO-EXISTE/iniciar-preparacion
+Authorization: Bearer {{tokenServicio}}
 
 ### 90) Reserva que entra MAÑANA en ATK-002 -> 201 Created (se confirma en la 91; en la 92 todavía no puede ser no-show, RN-12)
 ###     (el no-show real se produce pasadas las 9 pm del día de entrada, solo o con este endpoint; la prueba unitaria lo cubre)
@@ -815,6 +965,7 @@ PUT http://localhost:8080/api/apartamentos/NO-EXISTE/iniciar-preparacion
     request.variables.set("hoy", f(0)); request.variables.set("manana", f(1)); request.variables.set("pasadoManana", f(2));
 %}
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -831,6 +982,7 @@ Content-Type: application/json
 
 ### 91) Confirmarla -> 200 OK
 PUT http://localhost:8080/api/reservas/{{codigoManana}}/confirmar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -839,36 +991,46 @@ Content-Type: application/json
 
 ### 92) Declarar el no-show antes de la hora límite -> 409 Conflict (RN-12)
 PUT http://localhost:8080/api/reservas/{{codigoManana}}/no-show
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 93) Declarar el no-show de una reserva CANCELADA (la de la prueba 53, cancelada en la 65) -> 409 Conflict (RN-08)
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/no-show
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 94) No-show de una reserva que no existe -> 404 Not Found
 PUT http://localhost:8080/api/reservas/RES-2026-99999/no-show
+Authorization: Bearer {{tokenRecepcion}}
 
 ### ---------------- Inventario: listados paginados, disponibilidad, capacidad y retiro ----------------
 ### (Todos los listados son de 10 por página y responden con "content" y "page")
 
 ### 95) Listar el inventario -> 200 OK, página 0 de 2 (15 apartamentos de la Ficha + TST-001 de la prueba 1)
 GET http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 
 ### 96) Segunda página del inventario -> 200 OK (6 apartamentos)
 GET http://localhost:8080/api/apartamentos?page=1
+Authorization: Bearer {{tokenAdmin}}
 
 ### 97) Disponibles para 2 adultos y 1 niño -> 200 OK (RN-01, RN-02, RN-07, RN-20)
 GET http://localhost:8080/api/apartamentos/disponibles?fechaEntrada=2027-03-10&fechaSalida=2027-03-12&adultos=2&ninos=1
+Authorization: Bearer {{tokenAdmin}}
 
 ### 98) Disponibles para 5 adultos con mascota -> 200 OK, solo apartamentos de 6 o más cupos que permiten mascotas (RN-Propia-03)
 GET http://localhost:8080/api/apartamentos/disponibles?fechaEntrada=2027-03-10&fechaSalida=2027-03-12&adultos=5&conMascota=true
+Authorization: Bearer {{tokenAdmin}}
 
 ### 99) Disponibilidad sin el número de adultos -> 400 Bad Request
 GET http://localhost:8080/api/apartamentos/disponibles?fechaEntrada=2027-03-10&fechaSalida=2027-03-12
+Authorization: Bearer {{tokenAdmin}}
 
 ### 100) Disponibilidad con la salida igual a la entrada -> 409 Conflict (RN-03)
 GET http://localhost:8080/api/apartamentos/disponibles?fechaEntrada=2027-03-10&fechaSalida=2027-03-10&adultos=2
+Authorization: Bearer {{tokenAdmin}}
 
 ### 101) Cambiar la capacidad de SNR-001 -> 200 OK (capacidad 5)
 PUT http://localhost:8080/api/apartamentos/SNR-001/capacidad
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -877,6 +1039,7 @@ Content-Type: application/json
 
 ### 102) Bajar la capacidad de BTL-002 a 1: su reserva de prueba (cargada al arrancar) ocupa 2 cupos -> 409 Conflict (RN-02)
 PUT http://localhost:8080/api/apartamentos/BTL-002/capacidad
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -885,6 +1048,7 @@ Content-Type: application/json
 
 ### 103) Capacidad 0 -> 400 Bad Request
 PUT http://localhost:8080/api/apartamentos/SNR-001/capacidad
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -893,15 +1057,19 @@ Content-Type: application/json
 
 ### 104) Retirar BTL-002, que tiene una reserva activa -> 409 Conflict (7.3)
 PUT http://localhost:8080/api/apartamentos/BTL-002/retirar
+Authorization: Bearer {{tokenAdmin}}
 
 ### 105) Retirar OPR-001, sin reservas -> 200 OK, activo=false (eliminación lógica 12.4: sigue existiendo)
 PUT http://localhost:8080/api/apartamentos/OPR-001/retirar
+Authorization: Bearer {{tokenAdmin}}
 
 ### 106) Retirarlo otra vez -> 409 Conflict
 PUT http://localhost:8080/api/apartamentos/OPR-001/retirar
+Authorization: Bearer {{tokenAdmin}}
 
 ### 107) Cambiar la capacidad de un apartamento retirado -> 409 Conflict
 PUT http://localhost:8080/api/apartamentos/OPR-001/capacidad
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -910,9 +1078,11 @@ Content-Type: application/json
 
 ### 108) No existe borrado físico -> 405 Method Not Allowed
 DELETE http://localhost:8080/api/apartamentos/OPR-001
+Authorization: Bearer {{tokenAdmin}}
 
 ### 109) Reserva con mascota en TST-001, que no permite mascotas -> 409 Conflict (RN-Propia-03)
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -929,6 +1099,7 @@ Content-Type: application/json
 
 ### 110) Bloquear TST-001 -> 201 Created + Location: /api/apartamentos/TST-001/bloqueos/{id}. El script guarda el id.
 POST http://localhost:8080/api/apartamentos/TST-001/bloquear
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -941,15 +1112,19 @@ Content-Type: application/json
 
 ### 111) Consultar el bloqueo creado (la URI del Location) -> 200 OK
 GET http://localhost:8080/api/apartamentos/TST-001/bloqueos/{{bloqueoId}}
+Authorization: Bearer {{tokenAdmin}}
 
 ### 112) Bloqueos de TST-001 -> 200 OK
 GET http://localhost:8080/api/apartamentos/TST-001/bloqueos
+Authorization: Bearer {{tokenAdmin}}
 
 ### 113) Bloqueos de GNR-001 -> 200 OK (el bloqueo de prueba cargado al arrancar)
 GET http://localhost:8080/api/apartamentos/GNR-001/bloqueos
+Authorization: Bearer {{tokenAdmin}}
 
 ### 114) Un bloqueo que se solapa con el de la prueba 110 -> 409 Conflict
 POST http://localhost:8080/api/apartamentos/TST-001/bloquear
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -965,6 +1140,7 @@ Content-Type: application/json
     request.variables.set("enVeintiunDias", f(21)); request.variables.set("enVeintidosDias", f(22));
 %}
 POST http://localhost:8080/api/apartamentos/BTL-002/bloquear
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -975,6 +1151,7 @@ Content-Type: application/json
 
 ### 116) Bloqueo con las fechas invertidas -> 409 Conflict (RN-03)
 POST http://localhost:8080/api/apartamentos/TST-001/bloquear
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -985,6 +1162,7 @@ Content-Type: application/json
 
 ### 117) Bloqueo sin motivo -> 400 Bad Request
 POST http://localhost:8080/api/apartamentos/TST-001/bloquear
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -995,11 +1173,13 @@ Content-Type: application/json
 
 ### 118) Bloqueo que no existe -> 404 Not Found
 GET http://localhost:8080/api/apartamentos/TST-001/bloqueos/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Tarifas: consulta de una tarifa ----------------
 
 ### 119) Definir la primera tarifa base de TST-001 -> 201 Created + Location: /api/apartamentos/TST-001/tarifas/{id}. El script guarda el id.
 POST http://localhost:8080/api/apartamentos/TST-001/tarifas
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -1012,45 +1192,57 @@ Content-Type: application/json
 
 ### 120) Consultar la tarifa creada (la URI del Location) -> 200 OK
 GET http://localhost:8080/api/apartamentos/TST-001/tarifas/{{tarifaId}}
+Authorization: Bearer {{tokenAdmin}}
 
 ### 121) Tarifa que no existe -> 404 Not Found
 GET http://localhost:8080/api/apartamentos/TST-001/tarifas/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Listado de reservas (7.5): filtros y orden de la más reciente a la más antigua ----------------
 
 ### 122) Todas las reservas -> 200 OK (incluye las tres de prueba cargadas al arrancar: pendiente, confirmada y cancelada)
 GET http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 123) Solo las confirmadas -> 200 OK
 GET http://localhost:8080/api/reservas?estado=CONFIRMADA
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 124) Las de ATK-001 con noches en diciembre de 2026 -> 200 OK
 GET http://localhost:8080/api/reservas?identificacionApartamento=ATK-001&desde=2026-12-01&hasta=2027-01-01
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 125) Segunda página de las reservas -> 200 OK
 GET http://localhost:8080/api/reservas?page=1
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 126) Estado que no existe -> 400 Bad Request
 GET http://localhost:8080/api/reservas?estado=INEXISTENTE
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 127) Rango con "hasta" anterior a "desde" -> 400 Bad Request
 GET http://localhost:8080/api/reservas?desde=2026-12-05&hasta=2026-12-01
+Authorization: Bearer {{tokenRecepcion}}
 
 ### 128) Versiones de la política de cancelación, paginadas -> 200 OK
 GET http://localhost:8080/api/alojamiento/politica-cancelacion?page=0&size=10
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Consulta de una temporada ----------------
 
 ### 129) Consultar la temporada registrada en la prueba 8 (la URI del Location) -> 200 OK (ejecutar antes la 8)
 GET http://localhost:8080/api/alojamiento/temporadas/{{temporadaNuevaId}}
+Authorization: Bearer {{tokenAdmin}}
 
 ### 130) Temporada que no existe -> 404 Not Found
 GET http://localhost:8080/api/alojamiento/temporadas/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{tokenAdmin}}
 
 ### ---------------- Mascotas (RN-Propia-03) ----------------
 
 ### 131) Crear un apartamento que permite mascotas -> 201 Created, permiteMascotas=true
 POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
@@ -1064,6 +1256,7 @@ Content-Type: application/json
 
 ### 132) Reserva con mascota en BTL-001 (permite mascotas, capacidad 2): titular + mascota = 2 cupos -> 201 Created
 POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -1080,6 +1273,7 @@ Content-Type: application/json
 
 ### 133) Cancelar con un motivo de menos de 5 caracteres -> 400 Bad Request
 PUT http://localhost:8080/api/reservas/{{codigoConfirmable}}/cancelar
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -1088,9 +1282,11 @@ Content-Type: application/json
 
 ### 134) Bloqueos de un apartamento que no existe -> 404 Not Found
 GET http://localhost:8080/api/apartamentos/NO-EXISTE/bloqueos
+Authorization: Bearer {{tokenAdmin}}
 
 ### 135) Pago en el folio de una reserva que no existe -> 404 Not Found
 POST http://localhost:8080/api/reservas/RES-2026-99999/folio/pagos
+Authorization: Bearer {{tokenRecepcion}}
 Content-Type: application/json
 
 {
@@ -1100,6 +1296,137 @@ Content-Type: application/json
 
 ### 136) Cuerpo enviado sin JSON como tipo de contenido -> 415 Unsupported Media Type
 POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenAdmin}}
 Content-Type: text/plain
 
 identificacion=TST-003
+
+### 137) Registrar un huésped -> 201 Created (registro público, no exige token)
+POST http://localhost:8080/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "Laura Gómez",
+  "correo": "laura@correo.com",
+  "contrasena": "Huesped2026",
+  "telefono": "3001234567",
+  "documento": "1094567890",
+  "fechaNacimiento": "1995-04-20"
+}
+
+### 138) Registrar de nuevo el mismo correo -> 409 Conflict (el correo debe ser único)
+POST http://localhost:8080/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "Laura Gómez",
+  "correo": "laura@correo.com",
+  "contrasena": "Huesped2026",
+  "telefono": "3001234567",
+  "documento": "1094567891",
+  "fechaNacimiento": "1995-04-20"
+}
+
+### 139) Contraseña sin mayúscula ni número -> 400 Bad Request (la forma del mensaje es inválida)
+POST http://localhost:8080/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "Pedro Ruiz",
+  "correo": "pedro@correo.com",
+  "contrasena": "debilucha",
+  "telefono": "3007654321",
+  "documento": "1094567892",
+  "fechaNacimiento": "1990-01-15"
+}
+
+### 140) El huésped recién registrado inicia sesión -> 200 OK con token y roles ["HUESPED"]
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "laura@correo.com",
+  "contrasena": "Huesped2026"
+}
+
+### ---------------- Seguridad: 401, 403 y recursos del huésped (7.1, 7.2) ----------------
+### 141) Sin token -> 401 Unauthorized (cualquier endpoint protegido)
+GET http://localhost:8080/api/apartamentos
+
+### 142) Token que no es válido -> 401 Unauthorized
+GET http://localhost:8080/api/apartamentos
+Authorization: Bearer este-token-no-es-valido
+
+### 143) Un huésped no puede listar todas las reservas -> 403 Forbidden (solo recepcionista y administrador)
+GET http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenHuesped1}}
+
+### 144) Un huésped no puede confirmar una reserva -> 403 Forbidden
+PUT http://localhost:8080/api/reservas/RES-2026-99999/confirmar
+Authorization: Bearer {{tokenHuesped1}}
+Content-Type: application/json
+
+{
+  "medioPago": "TRANSFERENCIA",
+  "referencia": "TRX-0002"
+}
+
+### 145) El personal de servicio no puede crear reservas -> 403 Forbidden
+POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenServicio}}
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "CTL-001",
+  "fechaEntrada": "2026-12-20",
+  "fechaSalida": "2026-12-22",
+  "canalOrigen": "DIRECTO",
+  "titular": { "documento": "1000000400", "nombre": "Titular de prueba", "fechaNacimiento": "1985-03-12" },
+  "ocupantes": []
+}
+
+### 146) El huésped 1 reserva por el portal como titular (su documento, 1094000111) -> 201 Created. El script guarda el código.
+POST http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenHuesped1}}
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "CTL-001",
+  "fechaEntrada": "2026-12-20",
+  "fechaSalida": "2026-12-22",
+  "canalOrigen": "PORTAL",
+  "titular": { "documento": "1094000111", "nombre": "Laura Gomez", "fechaNacimiento": "1995-01-30" },
+  "ocupantes": []
+}
+
+> {% client.global.set("codigoHuesped1", response.body.codigo); %}
+
+### 147) El huésped 1 consulta su propia reserva -> 200 OK
+GET http://localhost:8080/api/reservas/{{codigoHuesped1}}
+Authorization: Bearer {{tokenHuesped1}}
+
+### 148) El huésped 2 consulta la reserva del huésped 1 -> 403 Forbidden (el rol no basta: se verifica el propietario)
+GET http://localhost:8080/api/reservas/{{codigoHuesped1}}
+Authorization: Bearer {{tokenHuesped2}}
+
+### 149) El huésped 2 intenta cancelar la reserva del huésped 1 -> 403 Forbidden
+PUT http://localhost:8080/api/reservas/{{codigoHuesped1}}/cancelar
+Authorization: Bearer {{tokenHuesped2}}
+Content-Type: application/json
+
+{
+  "motivo": "Intento de cancelar una reserva ajena"
+}
+
+### 150) La recepcionista sí puede consultar la reserva de un huésped -> 200 OK
+GET http://localhost:8080/api/reservas/{{codigoHuesped1}}
+Authorization: Bearer {{tokenRecepcion}}
+
+### 151) El huésped 1 cancela su propia reserva -> 200 OK, CANCELADA
+PUT http://localhost:8080/api/reservas/{{codigoHuesped1}}/cancelar
+Authorization: Bearer {{tokenHuesped1}}
+Content-Type: application/json
+
+{
+  "motivo": "Cambio de planes del huésped"
+}

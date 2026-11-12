@@ -13,10 +13,10 @@ export interface LoginRequest {
  */
 export type Rol = 'HUESPED' | 'RECEPCIONISTA' | 'ADMINISTRADOR' | 'PERSONAL_SERVICIO';
 
-// Espejo del record TokenResponse de Java
+// Espejo del record TokenResponse de Java (los nombres de campo deben ser idénticos)
 export interface TokenResponse {
     token: string;
-    type: string;       // Por lo general "Bearer"
-    expireAt: string;   // El Instant de Java llega como texto ISO-8601 (ej. "2026-11-20T15:30:00Z")
+    tipo: string;       // Por lo general "Bearer"
+    expiraEn: string;   // El Instant de Java llega como texto ISO-8601 (ej. "2026-11-20T15:30:00Z")
     roles: Rol[];
 }

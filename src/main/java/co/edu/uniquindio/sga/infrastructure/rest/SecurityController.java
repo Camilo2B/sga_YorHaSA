@@ -1,6 +1,7 @@
 package co.edu.uniquindio.sga.infrastructure.rest;
 
 import co.edu.uniquindio.sga.application.dto.request.LoginRequest;
+import co.edu.uniquindio.sga.application.dto.request.RegistrarHuespedRequest;
 import co.edu.uniquindio.sga.application.dto.response.TokenResponse;
 import co.edu.uniquindio.sga.application.security.SecurityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Autenticación", description = "Inicio de sesión y emisión del JWT")
+@Tag(name = "Autenticación", description = "Inicio de sesión, emisión del JWT y registro de huéspedes")
 public class SecurityController {
 
     private final SecurityService securityService;
@@ -33,5 +35,17 @@ public class SecurityController {
     @ApiResponse(responseCode = "401", description = "Credenciales inválidas o usuario inactivo")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(securityService.login(request));
+    }
+
+    /** POST -> /api/auth/registro */
+    @PostMapping("/registro")
+    @SecurityRequirements    // este endpoint es público: no exige token en Swagger
+    @Operation(summary = "Registrar un huésped", description = "Registro público (7.2): crea un usuario con rol HUESPED")
+    @ApiResponse(responseCode = "201", description = "Huésped registrado")
+    @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
+    @ApiResponse(responseCode = "409", description = "El correo o el documento ya están registrados")
+    public ResponseEntity<Void> registrar(@Valid @RequestBody RegistrarHuespedRequest request) {
+        securityService.registrarHuesped(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

@@ -12,7 +12,7 @@ import Cotizacion from './paginas/Cotizacion';
 export default function App() {
     return (
         <>
-            <Encabezado nombreAlojamiento="Bunker Orbital YorHa S.A" />
+            <Encabezado nombreAlojamiento="Búnker Orbital YoRHa S.A." />
 
             <main>
                 <Routes>

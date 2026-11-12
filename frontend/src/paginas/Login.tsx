@@ -1,7 +1,7 @@
 // src/paginas/Login.tsx
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { esquemaLogin, type FormularioLogin } from '../esquemas/login';
 import { login } from '../servicios/authServicio';
 import { guardarSesion } from '../servicios/sesion';
@@ -9,6 +9,10 @@ import { estadoHttp, mensajeDeError } from '../utilidades/errores';
 
 export default function Login() {
     const navigate = useNavigate();
+    // El interceptor de api.ts nos trae aquí con ?requerido=1 cuando una petición protegida respondió 401
+    const [parametros] = useSearchParams();
+    const sesionRequerida = parametros.get('requerido') === '1';
+
     const {
         register,
         handleSubmit,
@@ -37,6 +41,8 @@ export default function Login() {
     return (
         <section>
             <h1>Ingresar</h1>
+
+            {sesionRequerida && <p className="error">Inicie sesión para continuar.</p>}
 
             <form onSubmit={handleSubmit(alEnviar)} noValidate>
                 <div>
