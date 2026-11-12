@@ -8,6 +8,7 @@ import co.edu.uniquindio.sga.domain.entity.Folio;
 import co.edu.uniquindio.sga.infrastructure.rest.mapper.FolioMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +35,8 @@ public class FolioController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR') "
+            + "or (hasAuthority('HUESPED') and @propietarioReserva.esTitular(#codigo, authentication))")
     public FolioResponse consultar(@PathVariable String codigo) {
         Folio folio = consultarFolioUseCase.ejecutar(mapper.toCodigo(codigo));
         return mapper.toResponse(codigo, folio);
@@ -41,6 +44,7 @@ public class FolioController {
 
     /** RN-15: crea un movimiento en el folio. Responde con el folio actualizado y la URI del folio en Location. */
     @PostMapping("/pagos")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public ResponseEntity<FolioResponse> registrarPago(@PathVariable String codigo, @Valid @RequestBody RegistrarPagoRequest request) {
         Folio folio = registrarPagoUseCase.ejecutar(mapper.toCodigo(codigo), mapper.toDinero(request.valor()),
                 request.medioPago(), request.referencia());

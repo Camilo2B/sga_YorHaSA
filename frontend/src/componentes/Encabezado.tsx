@@ -12,8 +12,8 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
     const navigate = useNavigate();
     const { sesion, autenticado, tieneRol } = useSesion();
 
-    // Mismos roles que acepta POST /api/reservas en el backend (@PreAuthorize de ReservaController.crear)
-    const puedeReservar = tieneRol('HUESPED', 'RECEPCIONISTA', 'ADMINISTRADOR');
+    // Mismos roles que aceptan en el backend POST /api/cotizaciones y POST /api/reservas (@PreAuthorize)
+    const puedeCotizarYReservar = tieneRol('HUESPED', 'RECEPCIONISTA', 'ADMINISTRADOR');
 
     function cerrarSesion() {
         borrarSesion();
@@ -26,8 +26,8 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
             <nav>
                 <ul>
                     <li><Link to="/">Inicio</Link></li>
-                    {autenticado && <li><Link to="/cotizaciones">Cotizar</Link></li>}
-                    {puedeReservar && <li><Link to="/reservas/nueva">Nueva reserva</Link></li>}
+                    {puedeCotizarYReservar && <li><Link to="/cotizaciones">Cotizar</Link></li>}
+                    {puedeCotizarYReservar && <li><Link to="/reservas/nueva">Nueva reserva</Link></li>}
                     {!autenticado && <li><Link to="/login">Ingresar</Link></li>}
                     {!autenticado && <li><Link to="/registro">Registrarse</Link></li>}
                     {sesion && (

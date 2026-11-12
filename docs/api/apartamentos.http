@@ -1430,3 +1430,110 @@ Content-Type: application/json
 {
   "motivo": "Cambio de planes del huésped"
 }
+
+### ---------------- Matriz de roles sobre configuración e inventario (7.1) ----------------
+### 152) Un huésped no puede crear apartamentos -> 403 Forbidden
+POST http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenHuesped1}}
+Content-Type: application/json
+
+{
+  "identificacion": "ROL-001",
+  "nombre": "Apartamento de la prueba de roles",
+  "capacidad": 2,
+  "dormitorios": [ { "descripcion": "Dormitorio 1", "tipoCama": "Cama doble" } ],
+  "estadoOperativoInicial": "PREPARADO"
+}
+
+### 153) La recepcionista no puede definir tarifas -> 403 Forbidden (es configuración: solo el administrador)
+POST http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenRecepcion}}
+Content-Type: application/json
+
+{
+  "temporadaId": "{{temporadaBaseId}}",
+  "valorPorNoche": 95000,
+  "vigenteDesde": "2027-02-01"
+}
+
+### 154) La recepcionista no puede registrar temporadas -> 403 Forbidden
+POST http://localhost:8080/api/alojamiento/temporadas
+Authorization: Bearer {{tokenRecepcion}}
+Content-Type: application/json
+
+{
+  "nombre": "Temporada no autorizada",
+  "fechaInicio": "2028-06-01",
+  "fechaFin": "2028-08-01"
+}
+
+### 155) La recepcionista no puede iniciar la preparación de un apartamento -> 403 Forbidden (eso es del personal de servicio)
+PUT http://localhost:8080/api/apartamentos/ATK-001/iniciar-preparacion
+Authorization: Bearer {{tokenRecepcion}}
+
+### 156) Un huésped no puede listar el inventario completo -> 403 Forbidden
+GET http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenHuesped1}}
+
+### 157) Un huésped no puede consultar las tarifas -> 403 Forbidden
+GET http://localhost:8080/api/apartamentos/ATK-001/tarifas
+Authorization: Bearer {{tokenHuesped1}}
+
+### 158) Un huésped no puede registrar pagos en el folio -> 403 Forbidden
+POST http://localhost:8080/api/reservas/RES-2026-99999/folio/pagos
+Authorization: Bearer {{tokenHuesped1}}
+Content-Type: application/json
+
+{
+  "medioPago": "TRANSFERENCIA",
+  "valor": 1000,
+  "referencia": "PRUEBA-ROLES"
+}
+
+### 159) El personal de servicio no puede listar reservas -> 403 Forbidden
+GET http://localhost:8080/api/reservas
+Authorization: Bearer {{tokenServicio}}
+
+### 160) El personal de servicio no puede cotizar -> 403 Forbidden
+POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenServicio}}
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" },
+    { "documento": "1000000002", "nombre": "Adulto Dos", "fechaNacimiento": "1992-08-20" },
+    { "documento": "1000000003", "nombre": "Niña", "fechaNacimiento": "2019-03-10" }
+  ]
+}
+
+### 161) El personal de servicio sí lista el inventario -> 200 OK (consulta los apartamentos pendientes de preparación)
+GET http://localhost:8080/api/apartamentos
+Authorization: Bearer {{tokenServicio}}
+
+### 162) Un huésped sí puede buscar disponibilidad -> 200 OK
+GET http://localhost:8080/api/apartamentos/disponibles?fechaEntrada=2027-03-10&fechaSalida=2027-03-12&adultos=2&ninos=0
+Authorization: Bearer {{tokenHuesped1}}
+
+### 163) Un huésped sí puede consultar un apartamento -> 200 OK
+GET http://localhost:8080/api/apartamentos/ATK-001
+Authorization: Bearer {{tokenHuesped1}}
+
+### 164) Un huésped sí puede cotizar -> 200 OK
+POST http://localhost:8080/api/cotizaciones
+Authorization: Bearer {{tokenHuesped1}}
+Content-Type: application/json
+
+{
+  "identificacionApartamento": "ATK-001",
+  "fechaEntrada": "2026-12-01",
+  "fechaSalida": "2026-12-03",
+  "ocupantes": [
+    { "documento": "1000000001", "nombre": "Adulto Uno", "fechaNacimiento": "1990-05-01" },
+    { "documento": "1000000002", "nombre": "Adulto Dos", "fechaNacimiento": "1992-08-20" },
+    { "documento": "1000000003", "nombre": "Niña", "fechaNacimiento": "2019-03-10" }
+  ]
+}

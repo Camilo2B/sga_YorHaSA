@@ -7,6 +7,7 @@ import co.edu.uniquindio.sga.domain.valueobject.Cotizacion;
 import co.edu.uniquindio.sga.domain.valueobject.Estancia;
 import co.edu.uniquindio.sga.infrastructure.rest.mapper.CotizacionMapper;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,7 @@ public class CotizacionController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('HUESPED', 'RECEPCIONISTA', 'ADMINISTRADOR')")
     public CotizacionResponse cotizar(@Valid @RequestBody CotizarEstanciaRequest request) {
         Estancia estancia = mapper.toEstancia(request);
         Cotizacion cotizacion = cotizarEstanciaUseCase.ejecutar(

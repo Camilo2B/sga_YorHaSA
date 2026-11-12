@@ -1,13 +1,30 @@
 openapi: 3.1.0
 info:
   title: SGA - Búnker Orbital YoRHa API
-  description: >-
+  description: |-
     API OpenAPI 3.1 para el Sistema de Gestión de Alojamiento (SGA) del Búnker Orbital YoRHa.
     Convención de errores: 400 = la forma del mensaje es inválida (la detectan las validaciones del DTO);
     404 = el recurso no existe; 409 = el mensaje es válido pero viola una regla de negocio (la detecta el dominio).
     Todos los errores usan el mismo formato ErrorResponse y nunca incluyen trazas técnicas.
     Listados: todos se paginan de 10 en 10 (parámetros page, empezando en 0, y size) y responden con el mismo formato
     de página (content + page).
+
+    **Seguridad.** Todos los endpoints, salvo el login y el registro, exigen el encabezado `Authorization: Bearer <token>`.
+    Sin token, o con un token inválido o vencido, la respuesta es 401 (`NO_AUTENTICADO`). Con un token válido pero sin
+    permiso para la operación, es 403 (`ACCESO_DENEGADO`).
+
+    | Operación | Roles que pueden realizarla |
+    |---|---|
+    | Crear, cambiar la capacidad y retirar apartamentos; bloquear; definir tarifas; registrar temporadas; definir la política de cancelación | ADMINISTRADOR |
+    | Consultar tarifas, bloqueos, temporadas y política de cancelación | RECEPCIONISTA, ADMINISTRADOR |
+    | Listar el inventario de apartamentos | RECEPCIONISTA, ADMINISTRADOR, PERSONAL_SERVICIO |
+    | Iniciar la preparación y marcar preparado un apartamento | PERSONAL_SERVICIO, ADMINISTRADOR |
+    | Consultar un apartamento, buscar disponibilidad y consultar el alojamiento | Cualquier usuario autenticado |
+    | Cotizar y crear una reserva | HUESPED, RECEPCIONISTA, ADMINISTRADOR |
+    | Listar reservas, confirmar, registrar llegada y salida, declarar no-show | RECEPCIONISTA, ADMINISTRADOR |
+    | Consultar y cancelar una reserva | RECEPCIONISTA, ADMINISTRADOR, o el HUESPED titular de esa reserva |
+    | Consultar el folio | RECEPCIONISTA, ADMINISTRADOR, o el HUESPED titular de la reserva |
+    | Registrar un pago en el folio | RECEPCIONISTA, ADMINISTRADOR |
   version: 1.0.0
 
 security:

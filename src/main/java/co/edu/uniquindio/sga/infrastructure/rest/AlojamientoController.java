@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,6 +66,7 @@ public class AlojamientoController {
     }
 
     @PostMapping("/temporadas")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ResponseEntity<TemporadaResponse> registrarTemporada(@Valid @RequestBody RegistrarTemporadaRequest request) {
         Temporada creada = registrarTemporadaUseCase.ejecutar(mapper.toDomain(request));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -75,12 +77,14 @@ public class AlojamientoController {
     }
 
     @GetMapping("/temporadas/{id}")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public TemporadaResponse consultarTemporada(@PathVariable UUID id) {
         return mapper.toTemporadaResponse(consultarTemporadaUseCase.ejecutar(id));
     }
 
     /** F-07, 7.4: define una nueva versión de la política de cancelación; las anteriores se conservan. */
     @PostMapping("/politica-cancelacion")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ResponseEntity<PoliticaCancelacionResponse> definirPolitica(@Valid @RequestBody DefinirPoliticaCancelacionRequest request) {
         PoliticaCancelacion creada = definirPoliticaCancelacionUseCase.ejecutar(
                 mapper.toTramos(request.tramos()), request.vigenteDesde());
@@ -93,11 +97,13 @@ public class AlojamientoController {
 
     /** 7.4: todas las versiones de la política, de la primera a la más reciente, 10 por página. */
     @GetMapping("/politica-cancelacion")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public Page<PoliticaCancelacionResponse> listarPoliticas(@PageableDefault(size = 10) Pageable pageable) {
         return listarPoliticasCancelacionUseCase.ejecutar(pageable).map(mapper::toPoliticaResponse);
     }
 
     @GetMapping("/politica-cancelacion/{version}")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public PoliticaCancelacionResponse consultarPolitica(@PathVariable int version) {
         return mapper.toPoliticaResponse(consultarPoliticaCancelacionUseCase.ejecutar(version));
     }

@@ -31,6 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -99,6 +100,7 @@ public class ApartamentoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ResponseEntity<ApartamentoResponse> crear(@Valid @RequestBody CrearApartamentoRequest request) {
         Apartamento creado = crearApartamentoUseCase.ejecutar(mapper.toDomain(request));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -110,6 +112,7 @@ public class ApartamentoController {
 
     /** 7.3: inventario completo (activos y retirados), 10 por página. */
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR', 'PERSONAL_SERVICIO')")
     public Page<ApartamentoResponse> listar(@PageableDefault(size = 10) Pageable pageable) {
         return listarApartamentosUseCase.ejecutar(pageable).map(mapper::toResponse);
     }
@@ -129,6 +132,7 @@ public class ApartamentoController {
 
     /** 7.3: cambia la capacidad; ninguna reserva activa puede quedar por encima de la nueva (RN-02). */
     @PutMapping("/{identificacion}/capacidad")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ApartamentoResponse cambiarCapacidad(@PathVariable String identificacion,
                                                 @Valid @RequestBody CambiarCapacidadRequest request) {
         return mapper.toResponse(cambiarCapacidadApartamentoUseCase.ejecutar(identificacion, request.capacidad()));
@@ -136,12 +140,14 @@ public class ApartamentoController {
 
     /** 7.3 / 12.4: retira el apartamento de la venta (eliminación lógica), solo sin reservas activas ni futuras. */
     @PutMapping("/{identificacion}/retirar")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ApartamentoResponse retirar(@PathVariable String identificacion) {
         return mapper.toResponse(retirarApartamentoUseCase.ejecutar(identificacion));
     }
 
     /** RN-07: bloquea el apartamento en un rango de fechas sin reservas activas. */
     @PostMapping("/{id}/bloquear")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ResponseEntity<BloqueoResponse> bloquear(@PathVariable("id") String identificacion,
                                                     @Valid @RequestBody BloquearApartamentoRequest request) {
         Bloqueo creado = bloquearApartamentoUseCase.ejecutar(identificacion, mapper.toBloqueo(request));
@@ -153,6 +159,7 @@ public class ApartamentoController {
     }
 
     @GetMapping("/{identificacion}/bloqueos")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public Page<BloqueoResponse> listarBloqueos(@PathVariable String identificacion,
                                                 @PageableDefault(size = 10) Pageable pageable) {
         return listarBloqueosApartamentoUseCase.ejecutar(identificacion, pageable)
@@ -160,12 +167,14 @@ public class ApartamentoController {
     }
 
     @GetMapping("/{identificacion}/bloqueos/{id}")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public BloqueoResponse consultarBloqueo(@PathVariable String identificacion, @PathVariable UUID id) {
         return mapper.toBloqueoResponse(identificacion, consultarBloqueoUseCase.ejecutar(identificacion, id));
     }
 
     /** 7.4: define una nueva tarifa (versión) del apartamento para una temporada. El histórico se conserva. */
     @PostMapping("/{identificacion}/tarifas")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     public ResponseEntity<TarifaResponse> definirTarifa(@PathVariable String identificacion,
                                                         @Valid @RequestBody DefinirTarifaRequest request) {
         Tarifa creada = definirTarifaUseCase.ejecutar(identificacion, request.temporadaId(),
@@ -179,6 +188,7 @@ public class ApartamentoController {
 
     /** 7.4: histórico de tarifas del apartamento (más recientes primero), con filtro opcional por temporada. */
     @GetMapping("/{identificacion}/tarifas")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public Page<TarifaResponse> listarTarifas(@PathVariable String identificacion,
                                               @RequestParam(required = false) UUID temporadaId,
                                               @PageableDefault(size = 10) Pageable pageable) {
@@ -186,18 +196,21 @@ public class ApartamentoController {
     }
 
     @GetMapping("/{identificacion}/tarifas/{id}")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
     public TarifaResponse consultarTarifa(@PathVariable String identificacion, @PathVariable UUID id) {
         return mapper.toTarifaResponse(consultarTarifaUseCase.ejecutar(identificacion, id));
     }
 
     /** 7.6: el personal de servicio empieza a preparar el apartamento (PENDIENTE_PREPARACION -> EN_PREPARACION). */
     @PutMapping("/{identificacion}/iniciar-preparacion")
+    @PreAuthorize("hasAnyAuthority('PERSONAL_SERVICIO', 'ADMINISTRADOR')")
     public ApartamentoResponse iniciarPreparacion(@PathVariable String identificacion) {
         return mapper.toResponse(iniciarPreparacionApartamentoUseCase.ejecutar(identificacion));
     }
 
     /** 7.6: el apartamento queda listo para el siguiente grupo (EN_PREPARACION -> PREPARADO). */
     @PutMapping("/{identificacion}/marcar-preparado")
+    @PreAuthorize("hasAnyAuthority('PERSONAL_SERVICIO', 'ADMINISTRADOR')")
     public ApartamentoResponse marcarPreparado(@PathVariable String identificacion) {
         return mapper.toResponse(marcarApartamentoPreparadoUseCase.ejecutar(identificacion));
     }
