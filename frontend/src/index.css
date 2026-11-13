@@ -1,28 +1,23 @@
+/* Estilos globales: afectan a toda la aplicación. */
+
+/* Selector de elemento: el pie de página siempre queda abajo */
 body {
-  margin: 0 auto;
-  max-width: 960px;
-  padding: 1rem;
-  font-family: system-ui, sans-serif;
-}
-
-.tarjeta {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.error {
-  color: #b00020;
-  font-size: 0.875rem;
-  margin: 0.25rem 0;
-}
-
-header nav ul {
+  min-height: 100vh;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  list-style: none;
-  padding: 0;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+/* Selector de ID: el título de la marca en el encabezado */
+#marca {
+  letter-spacing: 0.04em;
 }

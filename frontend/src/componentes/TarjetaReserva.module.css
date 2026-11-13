@@ -1,0 +1,20 @@
+/* CSS Module: estas clases solo existen dentro del componente que las importa.
+   Vite las renombra (por ejemplo, _tarjeta_x7k2a) para que no choquen con otras. */
+
+.tarjeta {
+    border-left: 4px solid var(--bs-secondary);
+    transition: box-shadow 0.2s ease;
+}
+
+.tarjeta:hover {
+    box-shadow: var(--bs-box-shadow);
+}
+
+/* Combinación de clases: la tarjeta de una reserva cancelada se ve apagada */
+.tarjeta.terminada {
+    opacity: 0.7;
+}
+
+.pendiente { border-left-color: var(--bs-warning); }
+.confirmada { border-left-color: var(--bs-primary); }
+.enCurso { border-left-color: var(--bs-success); }

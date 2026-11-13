@@ -1,32 +1,27 @@
 import { Route, Routes } from 'react-router';
-import { Encabezado } from './componentes/Encabezado';
-import { PiePagina } from './componentes/PiePagina';
+import { Layout } from './componentes/Layout';
 import DetalleApartamento from './paginas/DetalleApartamento';
 import Inicio from './paginas/Inicio';
+import ListaReservas from './paginas/ListaReservas';
 import Login from './paginas/Login';
 import NoEncontrada from './paginas/NoEncontrada';
-import Registro from './paginas/Registro';
 import NuevaReserva from './paginas/NuevaReserva';
-import Cotizacion from './paginas/Cotizacion';
+import Registro from './paginas/Registro';
+
 
 export default function App() {
     return (
-        <>
-            <Encabezado nombreAlojamiento="Búnker Orbital YoRHa S.A." />
-
-            <main>
-                <Routes>
-                    <Route path="/" element={<Inicio />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/registro" element={<Registro />} />
-                    <Route path="/apartamentos/:identificacion" element={<DetalleApartamento />} />
-                    <Route path="/reservas/nueva" element={<NuevaReserva />} />
-                    <Route path="/cotizaciones" element={<Cotizacion />} />
-                    <Route path="*" element={<NoEncontrada />} />
-                </Routes>
-            </main>
-
-            <PiePagina />
-        </>
+        <Routes>
+            {/* Ruta de diseño: no tiene path; todas sus hijas se pintan dentro de su <Outlet /> */}
+            <Route element={<Layout />}>
+                <Route index element={<Inicio />} />
+                <Route path="login" element={<Login />} />
+                <Route path="registro" element={<Registro />} />
+                <Route path="apartamentos/:identificacion" element={<DetalleApartamento />} />
+                <Route path="reservas" element={<ListaReservas />} />
+                <Route path="reservas/nueva" element={<NuevaReserva />} />
+                <Route path="*" element={<NoEncontrada />} />
+            </Route>
+        </Routes>
     );
 }

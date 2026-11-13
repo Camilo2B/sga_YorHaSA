@@ -22,4 +22,5 @@ export interface Apartamento {
     permiteMascotas: boolean;
     estadoOperativo: EstadoOperativo;
     activo: boolean;
+    caracteristicas?: string;   // ← nueva, opcional
 }

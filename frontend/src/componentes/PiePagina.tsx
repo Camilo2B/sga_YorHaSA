@@ -4,5 +4,11 @@ const ANIO_ACTUAL = new Date().getFullYear();
 
 
 export function PiePagina() {
-    return <footer>© {ANIO_ACTUAL} Universidad del Quindío — Programación Avanzada</footer>;
+    return (
+        <footer className="bg-body-tertiary border-top py-3 mt-4">
+            <div className="container text-center text-body-secondary small">
+                © {ANIO_ACTUAL} Universidad del Quindío — Programación Avanzada
+            </div>
+        </footer>
+    );
 }

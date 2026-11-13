@@ -1,17 +1,23 @@
-// src/paginas/NuevaReserva.tsx
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useFieldArray, useForm, type Path } from 'react-hook-form';
-import { useSearchParams } from 'react-router';
 import { esquemaNuevaReserva, type FormularioNuevaReserva } from '../esquemas/reserva';
 import type { CrearReservaRequest } from '../modelos/reserva';
 import { crearReserva } from '../servicios/reservaServicio';
 import { erroresDeCampo, mensajeDeError } from '../utilidades/errores';
 
+
 const OCUPANTE_VACIO = { documento: '', nombre: '', fechaNacimiento: '' };
 
-// Del formulario al DTO del backend. El titular es el primer ocupante,
-// y los ocupantes adicionales van a partir del segundo (slice(1)).
+
+// Clase condicional reutilizable: el campo se pinta en rojo si tiene error
+function claseCampo(error: unknown) {
+    return `form-control ${error ? 'is-invalid' : ''}`;
+}
+
+
+// Del formulario al DTO del backend. El primer ocupante es el titular, y la
+// pantalla es de recepción: el canal de origen es DIRECTO (2.4).
 function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
     return {
         identificacionApartamento: datos.identificacionApartamento,
@@ -20,22 +26,12 @@ function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
         horaEstimadaLlegada: datos.horaEstimadaLlegada || null,
         canalOrigen: 'DIRECTO',
         titular: datos.ocupantes[0],
-        ocupantes: datos.ocupantes.slice(1),
+        ocupantes: datos.ocupantes,
     };
 }
 
-// El backend numera los acompañantes desde 0 (ocupantes[0] es el primer acompañante) y el titular va aparte;
-// en el formulario el titular es el ocupante 0, así que los acompañantes se corren un lugar.
-function aRutaDelFormulario(campo: string): string {
-    if (campo.startsWith('titular.')) {
-        return campo.replace(/^titular\./, 'ocupantes.0.');
-    }
-    return campo.replace(/^ocupantes\.(\d+)/, (_, indice: string) => `ocupantes.${Number(indice) + 1}`);
-}
 
 export default function NuevaReserva() {
-    // /reservas/nueva?apartamento=ATK-001 deja el apartamento ya escrito
-    const [parametros] = useSearchParams();
     const [codigoCreado, setCodigoCreado] = useState<string | null>(null);
     const {
         register,
@@ -48,7 +44,7 @@ export default function NuevaReserva() {
         resolver: zodResolver(esquemaNuevaReserva),
         mode: 'onTouched',
         defaultValues: {
-            identificacionApartamento: parametros.get('apartamento') ?? '',
+            identificacionApartamento: '',
             fechaEntrada: '',
             fechaSalida: '',
             horaEstimadaLlegada: '',
@@ -56,8 +52,10 @@ export default function NuevaReserva() {
         },
     });
 
+
     // useFieldArray administra la lista de ocupantes: agregar, quitar y registrar cada campo
     const { fields, append, remove } = useFieldArray({ control, name: 'ocupantes' });
+
 
     async function alEnviar(datos: FormularioNuevaReserva) {
         setCodigoCreado(null);
@@ -66,94 +64,126 @@ export default function NuevaReserva() {
             setCodigoCreado(reserva.codigo);
             reset();
         } catch (error) {
-            // 400: el backend dice qué campo falló; se muestra junto al campo correspondiente
-            const camposError = erroresDeCampo(error);
-            if (Object.keys(camposError).length > 0) {
-                for (const [campo, mensaje] of Object.entries(camposError)) {
-                    setError(aRutaDelFormulario(campo) as Path<FormularioNuevaReserva>, { message: mensaje });
-                }
-            } else {
-                // Si el 400 no especifica campos concretos, mostramos el mensaje general del servidor
-                setError('root.servidor', { message: mensajeDeError(error) });
+            // 400: el backend dice qué campo falló; se muestra junto al campo
+            for (const [campo, mensaje] of Object.entries(erroresDeCampo(error))) {
+                const ruta = campo.replace(/^titular\./, 'ocupantes.0.');
+                setError(ruta as Path<FormularioNuevaReserva>, { message: mensaje });
             }
+            // 404, 409 y cualquier otro: mensaje general con significado de negocio
+            setError('root.servidor', { message: mensajeDeError(error) });
         }
     }
 
+
     return (
         <section>
-            <h1>Nueva reserva (recepción)</h1>
+            <h1 className="h3 mb-3">Nueva reserva <small className="text-body-secondary">(recepción)</small></h1>
+
 
             <form onSubmit={handleSubmit(alEnviar)} noValidate>
-                <div>
-                    <label htmlFor="identificacionApartamento">Apartamento</label>
-                    <input id="identificacionApartamento" placeholder="APT-301" {...register('identificacionApartamento')} />
-                    {errors.identificacionApartamento && <p className="error">{errors.identificacionApartamento.message}</p>}
+                <div className="row g-3">
+                    <div className="col-12 col-md-6">
+                        <label htmlFor="identificacionApartamento" className="form-label">Apartamento</label>
+                        <input
+                            id="identificacionApartamento"
+                            placeholder="APT-301"
+                            className={claseCampo(errors.identificacionApartamento)}
+                            {...register('identificacionApartamento')}
+                        />
+                        <div className="invalid-feedback">{errors.identificacionApartamento?.message}</div>
+                    </div>
+
+
+                    <div className="col-12 col-md-6">
+                        <label htmlFor="horaEstimadaLlegada" className="form-label">Hora estimada de llegada (opcional)</label>
+                        <input
+                            id="horaEstimadaLlegada"
+                            type="time"
+                            className={claseCampo(errors.horaEstimadaLlegada)}
+                            {...register('horaEstimadaLlegada')}
+                        />
+                        <div className="invalid-feedback">{errors.horaEstimadaLlegada?.message}</div>
+                    </div>
+
+
+                    <div className="col-12 col-md-6">
+                        <label htmlFor="fechaEntrada" className="form-label">Fecha de entrada</label>
+                        <input id="fechaEntrada" type="date" className={claseCampo(errors.fechaEntrada)} {...register('fechaEntrada')} />
+                        <div className="invalid-feedback">{errors.fechaEntrada?.message}</div>
+                    </div>
+
+
+                    <div className="col-12 col-md-6">
+                        <label htmlFor="fechaSalida" className="form-label">Fecha de salida</label>
+                        <input id="fechaSalida" type="date" className={claseCampo(errors.fechaSalida)} {...register('fechaSalida')} />
+                        <div className="invalid-feedback">{errors.fechaSalida?.message}</div>
+                    </div>
                 </div>
 
-                <div>
-                    <label htmlFor="fechaEntrada">Fecha de entrada</label>
-                    <input id="fechaEntrada" type="date" {...register('fechaEntrada')} />
-                    {errors.fechaEntrada && <p className="error">{errors.fechaEntrada.message}</p>}
-                </div>
 
-                <div>
-                    <label htmlFor="fechaSalida">Fecha de salida</label>
-                    <input id="fechaSalida" type="date" {...register('fechaSalida')} />
-                    {errors.fechaSalida && <p className="error">{errors.fechaSalida.message}</p>}
-                </div>
+                <fieldset className="mt-4">
+                    <legend className="h5">Ocupantes <small className="text-body-secondary">(el primero es el titular)</small></legend>
 
-                <div>
-                    <label htmlFor="horaEstimadaLlegada">Hora estimada de llegada (opcional)</label>
-                    <input id="horaEstimadaLlegada" type="time" {...register('horaEstimadaLlegada')} />
-                    {errors.horaEstimadaLlegada && <p className="error">{errors.horaEstimadaLlegada.message}</p>}
-                </div>
-
-                <fieldset>
-                    <legend>Ocupantes (el primero es el titular)</legend>
 
                     {fields.map((campo, indice) => (
-                        <div key={campo.id} className="tarjeta">
-                            <strong>{indice === 0 ? 'Titular' : `Ocupante ${indice + 1}`}</strong>
-
-                            <div>
-                                <label htmlFor={`documento-${indice}`}>Documento</label>
-                                <input id={`documento-${indice}`} {...register(`ocupantes.${indice}.documento`)} />
-                                {errors.ocupantes?.[indice]?.documento && (
-                                    <p className="error">{errors.ocupantes[indice].documento.message}</p>
+                        <div key={campo.id} className="card mb-3">
+                            <div className="card-header d-flex justify-content-between align-items-center">
+                                <strong>{indice === 0 ? 'Titular' : `Ocupante ${indice + 1}`}</strong>
+                                {indice > 0 && (
+                                    <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => remove(indice)}>
+                                        Quitar
+                                    </button>
                                 )}
                             </div>
-
-                            <div>
-                                <label htmlFor={`nombre-${indice}`}>Nombre</label>
-                                <input id={`nombre-${indice}`} {...register(`ocupantes.${indice}.nombre`)} />
-                                {errors.ocupantes?.[indice]?.nombre && (
-                                    <p className="error">{errors.ocupantes[indice].nombre.message}</p>
-                                )}
+                            <div className="card-body row g-3">
+                                <div className="col-12 col-md-4">
+                                    <label htmlFor={`documento-${indice}`} className="form-label">Documento</label>
+                                    <input
+                                        id={`documento-${indice}`}
+                                        className={claseCampo(errors.ocupantes?.[indice]?.documento)}
+                                        {...register(`ocupantes.${indice}.documento`)}
+                                    />
+                                    <div className="invalid-feedback">{errors.ocupantes?.[indice]?.documento?.message}</div>
+                                </div>
+                                <div className="col-12 col-md-4">
+                                    <label htmlFor={`nombre-${indice}`} className="form-label">Nombre</label>
+                                    <input
+                                        id={`nombre-${indice}`}
+                                        className={claseCampo(errors.ocupantes?.[indice]?.nombre)}
+                                        {...register(`ocupantes.${indice}.nombre`)}
+                                    />
+                                    <div className="invalid-feedback">{errors.ocupantes?.[indice]?.nombre?.message}</div>
+                                </div>
+                                <div className="col-12 col-md-4">
+                                    <label htmlFor={`fechaNacimiento-${indice}`} className="form-label">Fecha de nacimiento</label>
+                                    <input
+                                        id={`fechaNacimiento-${indice}`}
+                                        type="date"
+                                        className={claseCampo(errors.ocupantes?.[indice]?.fechaNacimiento)}
+                                        {...register(`ocupantes.${indice}.fechaNacimiento`)}
+                                    />
+                                    <div className="invalid-feedback">{errors.ocupantes?.[indice]?.fechaNacimiento?.message}</div>
+                                </div>
                             </div>
-
-                            <div>
-                                <label htmlFor={`fechaNacimiento-${indice}`}>Fecha de nacimiento</label>
-                                <input id={`fechaNacimiento-${indice}`} type="date" {...register(`ocupantes.${indice}.fechaNacimiento`)} />
-                                {errors.ocupantes?.[indice]?.fechaNacimiento && (
-                                    <p className="error">{errors.ocupantes[indice].fechaNacimiento.message}</p>
-                                )}
-                            </div>
-
-                            {indice > 0 && (
-                                <button type="button" onClick={() => remove(indice)}>Quitar</button>
-                            )}
                         </div>
                     ))}
 
-                    <button type="button" onClick={() => append(OCUPANTE_VACIO)}>Agregar ocupante</button>
+
+                    <button type="button" className="btn btn-outline-secondary" onClick={() => append(OCUPANTE_VACIO)}>
+                        <i className="bi bi-person-plus me-1" aria-hidden="true"></i>Agregar ocupante
+                    </button>
                 </fieldset>
 
-                <button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Creando…' : 'Crear reserva'}
-                </button>
 
-                {errors.root?.servidor && <p className="error">{errors.root.servidor.message}</p>}
-                {codigoCreado && <p className="exito">Reserva {codigoCreado} creada en estado PENDIENTE.</p>}
+                <div className="mt-4">
+                    <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                        {isSubmitting ? 'Creando…' : 'Crear reserva'}
+                    </button>
+                </div>
+
+
+                {errors.root?.servidor && <div className="alert alert-danger mt-3">{errors.root.servidor.message}</div>}
+                {codigoCreado && <div className="alert alert-success mt-3">Reserva {codigoCreado} creada en estado PENDIENTE.</div>}
             </form>
         </section>
     );

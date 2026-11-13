@@ -55,3 +55,16 @@ export interface ReservaDetalle {
     fechaCreacion: string;
     motivoCancelacion: string | null;
 }
+
+// Espejo de: record ReservaResumenResponse(...) — vista breve para listados (Guía 08, 5.2)
+export interface ReservaResumen {
+    codigo: string;
+    estado: EstadoReserva;
+    identificacionApartamento: string;
+    fechaEntrada: string;
+    fechaSalida: string;
+    nombreTitular: string;
+    totalOcupantes: number;
+    valorTotal: number;
+    canalOrigen: CanalOrigen;
+}

@@ -1,0 +1,196 @@
+/* Tema inspirado en el menú de NieR: Automata.
+   IMPORTANTE: el @import debe ser la primera línea del archivo. */
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&display=swap');
+
+:root {
+    /* Colores estimados de la captura: afínalos con un cuentagotas */
+    --nier-fondo: #cdc8b0;
+    --nier-panel: #e4e0ca;
+    --nier-panel-suave: #dad6be;
+    --nier-tinta: #4a4640;
+    --nier-tinta-suave: #8a8574;
+    --nier-linea: #b3ae96;
+    --nier-error: #9c4a3d;
+}
+
+:root,
+[data-bs-theme] {
+    --bs-body-bg: var(--nier-fondo);
+    --bs-body-color: var(--nier-tinta);
+    --bs-body-font-family: 'Jost', 'Segoe UI', sans-serif;
+    --bs-heading-color: var(--nier-tinta);
+    --bs-border-color: var(--nier-linea);
+    --bs-border-radius: 0;
+    --bs-border-radius-sm: 0;
+    --bs-border-radius-lg: 0;
+    --bs-secondary-color: var(--nier-tinta-suave);
+    --bs-link-color: var(--nier-tinta);
+    --bs-link-hover-color: #000;
+    --bs-danger: var(--nier-error);
+    --bs-form-invalid-color: var(--nier-error);
+    --bs-form-invalid-border-color: var(--nier-error);
+}
+
+/* Fondo con cuadrícula tenue, como la pantalla del juego */
+body {
+    background-color: var(--nier-fondo);
+    background-image:
+            linear-gradient(rgba(74, 70, 64, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(74, 70, 64, 0.05) 1px, transparent 1px);
+    background-size: 4px 4px;
+    letter-spacing: 0.04em;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+/* Barra superior con la franja de puntos y la pestaña activa oscura */
+.navbar {
+    background: transparent !important;
+    border-bottom: 1px solid var(--nier-tinta);
+    position: relative;
+    padding-bottom: 0;
+}
+.navbar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -10px;
+    height: 6px;
+    background-image: radial-gradient(circle, var(--nier-tinta) 1.2px, transparent 1.6px);
+    background-size: 16px 6px;
+    background-repeat: repeat-x;
+}
+.navbar .nav-link,
+.navbar .navbar-brand {
+    color: var(--nier-tinta);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 0.9rem 1.4rem;
+}
+.navbar .nav-link:hover {
+    background: var(--nier-panel-suave);
+}
+.navbar .nav-link.active,
+.navbar .nav-link[aria-current='page'] {
+    background: var(--nier-tinta);
+    color: var(--nier-panel);
+}
+
+/* Tarjetas: cabecera oscura con texto claro, cuerpo crema */
+.card {
+    background: var(--nier-panel);
+    border: 1px solid var(--nier-linea);
+    box-shadow: none !important;
+}
+.card-header {
+    background: var(--nier-tinta);
+    color: var(--nier-panel);
+    border-bottom: none;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+.card-header .h5,
+.card-header h1,
+.card-header h2,
+.card-header h3 {
+    color: var(--nier-panel);
+}
+.card-footer {
+    background: transparent;
+    border-top: 1px solid var(--nier-linea);
+}
+
+/* Botones: el seleccionado/hover se invierte (oscuro con texto claro) */
+.btn {
+    border-radius: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+.btn-primary {
+    --bs-btn-bg: var(--nier-tinta);
+    --bs-btn-border-color: var(--nier-tinta);
+    --bs-btn-color: var(--nier-panel);
+    --bs-btn-hover-bg: #2f2c27;
+    --bs-btn-hover-border-color: #2f2c27;
+    --bs-btn-hover-color: var(--nier-panel);
+    --bs-btn-active-bg: #2f2c27;
+    --bs-btn-active-border-color: #2f2c27;
+    --bs-btn-disabled-bg: var(--nier-tinta-suave);
+    --bs-btn-disabled-border-color: var(--nier-tinta-suave);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--nier-tinta);
+    --bs-btn-border-color: var(--nier-tinta);
+    --bs-btn-hover-bg: var(--nier-tinta);
+    --bs-btn-hover-border-color: var(--nier-tinta);
+    --bs-btn-hover-color: var(--nier-panel);
+    --bs-btn-active-bg: var(--nier-tinta);
+    --bs-btn-active-border-color: var(--nier-tinta);
+    --bs-btn-active-color: var(--nier-panel);
+}
+
+/* Formularios */
+.form-control,
+.form-select {
+    background-color: var(--nier-panel-suave);
+    border: 1px solid var(--nier-linea);
+    color: var(--nier-tinta);
+}
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--nier-panel);
+    border-color: var(--nier-tinta);
+    box-shadow: none;
+    outline: 1px solid var(--nier-tinta);
+    outline-offset: 1px;
+}
+.form-label {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.8rem;
+}
+
+/* Listas: fila seleccionada oscura, como en la lista de ítems */
+.list-group {
+    --bs-list-group-bg: var(--nier-panel);
+    --bs-list-group-border-color: var(--nier-linea);
+    --bs-list-group-active-bg: var(--nier-tinta);
+    --bs-list-group-active-border-color: var(--nier-tinta);
+    --bs-list-group-active-color: var(--nier-panel);
+    --bs-list-group-action-hover-bg: var(--nier-panel-suave);
+}
+
+/* Alertas y badges sobrios */
+.alert {
+    border-radius: 0;
+    border: 1px solid var(--nier-linea);
+}
+.alert-danger {
+    background: var(--nier-panel);
+    color: var(--nier-error);
+    border-left: 4px solid var(--nier-error);
+}
+.badge {
+    border-radius: 0;
+    letter-spacing: 0.08em;
+}
+
+/* Tablas */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--nier-linea);
+}
+.table thead th {
+    background: var(--nier-tinta);
+    color: var(--nier-panel);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 400;
+}
