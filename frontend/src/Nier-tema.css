@@ -4,6 +4,7 @@
 
 :root {
     /* Colores estimados de la captura: afínalos con un cuentagotas */
+    color-scheme: only light;
     --nier-fondo: #cdc8b0;
     --nier-panel: #e4e0ca;
     --nier-panel-suave: #dad6be;
