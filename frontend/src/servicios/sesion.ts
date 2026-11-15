@@ -61,6 +61,16 @@ export function leerSesion(): TokenResponse | null {
     return sesion;
 }
 
+/** La sesión guardada, solo si su token no ha expirado. Una sesión vencida se descarta. */
+export function sesionVigente(): TokenResponse | null {
+    const sesion = leerSesion();
+    if (sesion && new Date(sesion.expiraEn).getTime() > Date.now()) {
+        return sesion;
+    }
+    borrarSesion();
+    return null;
+}
+
 export function obtenerToken(): string | null {
     return leerSesion()?.token ?? null;
 }

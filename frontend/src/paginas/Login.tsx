@@ -1,14 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
 import { esquemaLogin, type FormularioLogin } from '../esquemas/login';
-import { login } from '../servicios/authServicio';
-import { guardarSesion } from '../servicios/sesion';
+import { useAuth } from '../hooks/useAuth';
 import { estadoHttp, mensajeDeError } from '../utilidades/errores';
 
 
 export default function Login() {
-    const navigate = useNavigate();
+    const { iniciarSesion, avisoSesion } = useAuth();
     const {
         register,
         handleSubmit,
@@ -23,9 +21,8 @@ export default function Login() {
 
     async function alEnviar(datos: FormularioLogin) {
         try {
-            const sesion = await login(datos);
-            guardarSesion(sesion);
-            navigate('/');
+            // Al cambiar la sesión, RutaPublica redirige: aquí no se navega
+            await iniciarSesion(datos);
         } catch (error) {
             setError('root.servidor', {
                 message: estadoHttp(error) === 401
@@ -46,6 +43,9 @@ export default function Login() {
                         </h1>
                     </div>
                     <div className="card-body">
+                        {avisoSesion && <div className="alert alert-warning">{avisoSesion}</div>}
+
+
                         <form onSubmit={handleSubmit(alEnviar)} noValidate>
                             <div className="mb-3">
                                 <label htmlFor="username" className="form-label">Correo electrónico</label>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router';
-import { borrarSesion, leerSesion } from '../servicios/sesion';
+import { Link, NavLink, useNavigate } from 'react-router';
+import { useAuth } from '../hooks/useAuth';
 
 
 interface EncabezadoProps {
@@ -8,7 +8,6 @@ interface EncabezadoProps {
 }
 
 
-// NavLink entrega isActive: se usa para marcar la opción de la página actual.
 function claseEnlace({ isActive }: { isActive: boolean }) {
     return `nav-link ${isActive ? 'active fw-semibold' : ''}`;
 }
@@ -17,16 +16,13 @@ function claseEnlace({ isActive }: { isActive: boolean }) {
 export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
     const [menuAbierto, setMenuAbierto] = useState(false);
     const navigate = useNavigate();
+    // La sesión ya no se lee de localStorage: viene del contexto, y cualquier
+    // cambio (login, logout, 401) vuelve a pintar el encabezado automáticamente.
+    const { sesion, tieneRol, cerrarSesion } = useAuth();
 
 
-    // Provisional: useLocation() hace que el encabezado se vuelva a pintar en cada
-    // navegación y así relea la sesión. En la Guía 18 la sesión vive en un contexto.
-    useLocation();
-    const sesion = leerSesion();
-
-
-    function cerrarSesion() {
-        borrarSesion();
+    function salir() {
+        cerrarSesion();
         navigate('/login');
     }
 
@@ -41,7 +37,6 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
                     </Link>
 
 
-                    {/* Botón hamburguesa: solo se ve por debajo del punto de quiebre md */}
                     <button
                         className="navbar-toggler"
                         type="button"
@@ -54,7 +49,6 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
                     </button>
 
 
-                    {/* Clase condicional: "show" despliega el menú en pantallas pequeñas */}
                     <div
                         id="menuPrincipal"
                         className={`collapse navbar-collapse ${menuAbierto ? 'show' : ''}`}
@@ -64,7 +58,8 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
                             <li className="nav-item">
                                 <NavLink to="/" end className={claseEnlace}>Inicio</NavLink>
                             </li>
-                            {sesion && (
+                            {/* Menú según el rol: cada opción aparece solo para quien puede usarla */}
+                            {tieneRol('RECEPCIONISTA', 'ADMINISTRADOR') && (
                                 <>
                                     <li className="nav-item">
                                         <NavLink to="/reservas" end className={claseEnlace}>Reservas</NavLink>
@@ -74,13 +69,21 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
                                     </li>
                                 </>
                             )}
+                            {tieneRol('ADMINISTRADOR') && (
+                                <li className="nav-item">
+                                    <NavLink to="/administracion" className={claseEnlace}>Administración</NavLink>
+                                </li>
+                            )}
                         </ul>
 
 
                         {sesion ? (
-                            <button type="button" className="btn btn-outline-danger btn-sm" onClick={cerrarSesion}>
-                                <i className="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Cerrar sesión
-                            </button>
+                            <div className="d-flex align-items-center gap-2">
+                                <span className="navbar-text small">{sesion.correo}</span>
+                                <button type="button" className="btn btn-outline-danger btn-sm" onClick={salir}>
+                                    <i className="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Cerrar sesión
+                                </button>
+                            </div>
                         ) : (
                             <div className="d-flex gap-2">
                                 <Link to="/login" className="btn btn-primary btn-sm">Ingresar</Link>

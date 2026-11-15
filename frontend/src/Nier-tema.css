@@ -9,7 +9,7 @@
     --nier-panel: #e4e0ca;
     --nier-panel-suave: #dad6be;
     --nier-tinta: #4a4640;
-    --nier-tinta-suave: #8a8574;
+    --nier-tinta-suave: #5a564b;
     --nier-linea: #b3ae96;
     --nier-error: #9c4a3d;
 }
@@ -194,4 +194,23 @@ h1, h2, h3, h4, h5, h6,
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 400;
+}
+
+:root,
+[data-bs-theme] {
+    --bs-tertiary-bg: var(--nier-panel-suave);
+    --bs-tertiary-bg-rgb: 218, 214, 190;
+    --bs-secondary-bg: var(--nier-panel-suave);
+    --bs-secondary-bg-rgb: 218, 214, 190;
+}
+
+.btn-outline-danger {
+    --bs-btn-color: var(--nier-error);
+    --bs-btn-border-color: var(--nier-error);
+    --bs-btn-hover-bg: var(--nier-error);
+    --bs-btn-hover-border-color: var(--nier-error);
+    --bs-btn-hover-color: var(--nier-panel);
+    --bs-btn-active-bg: var(--nier-error);
+    --bs-btn-active-border-color: var(--nier-error);
+    --bs-btn-active-color: var(--nier-panel);
 }

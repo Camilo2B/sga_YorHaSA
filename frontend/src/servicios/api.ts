@@ -1,42 +1,47 @@
 import axios from 'axios';
-import { borrarSesion, obtenerToken } from './sesion';
+import { obtenerToken } from './sesion';
 
 // Cliente HTTP único de la aplicación: todos los servicios lo usan.
-// La URL del backend se puede cambiar con VITE_API_URL (archivo .env) sin tocar el código.
 export const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api',
-    timeout: 10_000,   // milisegundos: pasado este tiempo, la petición falla
+    baseURL: 'http://localhost:8080/api',
+    timeout: 10_000,
 });
 
-// Las rutas /auth/* son públicas: allí no se envía token (un token vencido haría fallar hasta el login).
-function esRutaPublica(url: string | undefined): boolean {
-    return url?.startsWith('/auth/') ?? false;
-}
-
-// Interceptor de petición: todas las peticiones protegidas llevan el JWT sin que cada servicio lo arme.
+// ---------- Interceptor de PETICIÓN: agrega el token a todas ----------
 api.interceptors.request.use((config) => {
     const token = obtenerToken();
-    if (token && !esRutaPublica(config.url)) {
+    // El login no lleva token: si llevara uno vencido, Spring Security
+    // rechazaría la petición con 401 aunque /api/auth/login sea pública.
+    const esAutenticacion = config.url?.startsWith('/auth/');
+    if (token && !esAutenticacion) {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
 });
 
-// Interceptor de respuesta: un 401 en una ruta protegida significa que no hay sesión o ya venció.
-// Se borra la sesión y se lleva al usuario al login.
+// ---------- Interceptor de RESPUESTA: maneja el 401 en un solo lugar ----------
+// Axios no vive dentro de React: no puede usar hooks ni cambiar el estado de un
+// componente. El AuthProvider le deja aquí una función para avisarle del 401.
+type ManejadorNoAutorizado = () => void;
+let manejadorNoAutorizado: ManejadorNoAutorizado | null = null;
+
+export function registrarManejadorNoAutorizado(manejador: ManejadorNoAutorizado) {
+    manejadorNoAutorizado = manejador;
+    return () => {
+        if (manejadorNoAutorizado === manejador) manejadorNoAutorizado = null;
+    };
+}
+
 api.interceptors.response.use(
-    (respuesta) => respuesta,
+    (respuesta) => respuesta,   // 2xx: pasa sin cambios
     (error: unknown) => {
         if (
             axios.isAxiosError(error) &&
             error.response?.status === 401 &&
-            !esRutaPublica(error.config?.url)
+            !error.config?.url?.startsWith('/auth/')   // un 401 del login son credenciales malas, no sesión vencida
         ) {
-            borrarSesion();
-            if (window.location.pathname !== '/login') {
-                window.location.assign('/login?requerido=1');
-            }
+            manejadorNoAutorizado?.();
         }
-        return Promise.reject(error);
+        return Promise.reject(error);   // el componente sigue recibiendo el error
     },
 );
