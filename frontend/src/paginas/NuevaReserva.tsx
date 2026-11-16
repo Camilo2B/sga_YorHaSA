@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
 import { useFieldArray, useForm, type Path } from 'react-hook-form';
+import { useNavigate } from 'react-router';
 import { esquemaNuevaReserva, type FormularioNuevaReserva } from '../esquemas/reserva';
 import type { CrearReservaRequest } from '../modelos/reserva';
 import { crearReserva } from '../servicios/reservaServicio';
 import { erroresDeCampo, mensajeDeError } from '../utilidades/errores';
+import { notificarExito } from '../utilidades/notificaciones';
 
 
 const OCUPANTE_VACIO = { documento: '', nombre: '', fechaNacimiento: '' };
@@ -32,12 +33,11 @@ function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
 
 
 export default function NuevaReserva() {
-    const [codigoCreado, setCodigoCreado] = useState<string | null>(null);
+    const navigate = useNavigate();
     const {
         register,
         control,
         handleSubmit,
-        reset,
         setError,
         formState: { errors, isSubmitting },
     } = useForm<FormularioNuevaReserva>({
@@ -58,11 +58,10 @@ export default function NuevaReserva() {
 
 
     async function alEnviar(datos: FormularioNuevaReserva) {
-        setCodigoCreado(null);
         try {
             const reserva = await crearReserva(aSolicitud(datos));
-            setCodigoCreado(reserva.codigo);
-            reset();
+            notificarExito(`Reserva ${reserva.codigo} creada en estado PENDIENTE`);
+            navigate('/reservas');
         } catch (error) {
             // 400: el backend dice qué campo falló; se muestra junto al campo
             for (const [campo, mensaje] of Object.entries(erroresDeCampo(error))) {
@@ -183,7 +182,6 @@ export default function NuevaReserva() {
 
 
                 {errors.root?.servidor && <div className="alert alert-danger mt-3">{errors.root.servidor.message}</div>}
-                {codigoCreado && <div className="alert alert-success mt-3">Reserva {codigoCreado} creada en estado PENDIENTE.</div>}
             </form>
         </section>
     );

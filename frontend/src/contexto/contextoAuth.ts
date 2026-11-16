@@ -12,7 +12,6 @@ export interface Sesion {
 export interface ValorAuth {
     sesion: Sesion | null;
     autenticado: boolean;
-    avisoSesion: string | null;   // p. ej., "Su sesión expiró": lo muestra el login
     iniciarSesion: (credenciales: LoginRequest) => Promise<Sesion>;
     cerrarSesion: () => void;
     tieneRol: (...roles: Rol[]) => boolean;

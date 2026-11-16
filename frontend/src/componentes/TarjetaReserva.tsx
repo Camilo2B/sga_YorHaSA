@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { EstadoReserva, ReservaResumen } from '../modelos/reserva';
 import { formatearFecha, formatearPesos } from '../utilidades/formato';
 import estilos from './TarjetaReserva.module.css';
@@ -24,10 +25,11 @@ const BORDE_ESTADO: Partial<Record<EstadoReserva, string>> = {
 
 interface TarjetaReservaProps {
     reserva: ReservaResumen;
+    acciones?: ReactNode;   // botones que decide quien usa la tarjeta (opcional)
 }
 
 
-export function TarjetaReserva({ reserva }: TarjetaReservaProps) {
+export function TarjetaReserva({ reserva, acciones }: TarjetaReservaProps) {
     const terminada = ['FINALIZADA', 'CANCELADA', 'NO_SHOW'].includes(reserva.estado);
 
 
@@ -58,10 +60,11 @@ export function TarjetaReserva({ reserva }: TarjetaReservaProps) {
                     {formatearFecha(reserva.fechaEntrada)} → {formatearFecha(reserva.fechaSalida)}
                 </p>
             </div>
-            <div className="card-footer d-flex justify-content-between">
+            <div className="card-footer d-flex justify-content-between align-items-center">
                 <small className="text-body-secondary">{reserva.canalOrigen}</small>
                 <strong>{formatearPesos(reserva.valorTotal)}</strong>
             </div>
+            {acciones && <div className="card-body border-top d-flex gap-2">{acciones}</div>}
         </article>
     );
 }

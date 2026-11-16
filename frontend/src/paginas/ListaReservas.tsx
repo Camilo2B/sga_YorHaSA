@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { Cargando } from '../componentes/Cargando';
+import { Paginacion } from '../componentes/Paginacion';
 import { TarjetaReserva } from '../componentes/TarjetaReserva';
+import type { RespuestaPaginada } from '../modelos/paginacion';
 import type { EstadoReserva, ReservaResumen } from '../modelos/reserva';
-import { listarReservas } from '../servicios/reservaServicio';
+import { cancelarReserva, confirmarReserva, listarReservas } from '../servicios/reservaServicio';
 import { mensajeDeError } from '../utilidades/errores';
+import { confirmarAccion, notificarError, notificarExito, pedirMotivo } from '../utilidades/notificaciones';
 
 
 const ESTADOS: EstadoReserva[] = [
@@ -13,34 +17,75 @@ const ESTADOS: EstadoReserva[] = [
 
 export default function ListaReservas() {
     const [estado, setEstado] = useState<EstadoReserva>('PENDIENTE');
-    const [reservas, setReservas] = useState<ReservaResumen[]>([]);
+    const [pagina, setPagina] = useState(0);
+    const [recargas, setRecargas] = useState(0);   // cambiarlo fuerza una nueva consulta
+    const [datos, setDatos] = useState<RespuestaPaginada<ReservaResumen> | null>(null);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
 
-    // El cambio de estado lo provoca el usuario: aquí se prepara la pantalla para la nueva consulta
-    function cambiarEstado(nuevo: EstadoReserva) {
-        setEstado(nuevo);
+    function prepararConsulta() {
         setCargando(true);
         setError(null);
     }
 
 
-    // Se ejecuta al montar la página y cada vez que cambia el estado elegido
+    function cambiarEstado(nuevo: EstadoReserva) {
+        setEstado(nuevo);
+        setPagina(0);   // un filtro nuevo siempre empieza en la primera página
+        prepararConsulta();
+    }
+
+
+    function cambiarPagina(nueva: number) {
+        setPagina(nueva);
+        prepararConsulta();
+    }
+
+
+    function recargar() {
+        setRecargas((n) => n + 1);
+        prepararConsulta();
+    }
+
+
+    // Paginación del servidor: cada página es una petición con ?pagina=N
     useEffect(() => {
-        // Si el usuario cambia de estado antes de que llegue la respuesta anterior,
-        // esa respuesta vieja se descarta. La Guía 20 la cancela con AbortController.
         let ignorar = false;
-
-
-        listarReservas(estado)
-            .then((datos) => { if (!ignorar) setReservas(datos); })
+        listarReservas(estado, pagina)
+            .then((respuesta) => { if (!ignorar) setDatos(respuesta); })
             .catch((e: unknown) => { if (!ignorar) setError(mensajeDeError(e)); })
             .finally(() => { if (!ignorar) setCargando(false); });
-
-
         return () => { ignorar = true; };
-    }, [estado]);
+    }, [estado, pagina, recargas]);
+
+
+    async function confirmar(codigo: string) {
+        if (!(await confirmarAccion('¿Confirmar la reserva?', codigo))) return;
+        try {
+            await confirmarReserva(codigo);
+            notificarExito(`Reserva ${codigo} confirmada`);
+            recargar();
+        } catch (e) {
+            notificarError(mensajeDeError(e));   // p. ej., 409: falta la hora estimada de llegada (RN-09)
+        }
+    }
+
+
+    async function cancelar(codigo: string) {
+        const motivo = await pedirMotivo(`Cancelar ${codigo}`);
+        if (motivo === null) return;
+        try {
+            await cancelarReserva(codigo, motivo);
+            notificarExito(`Reserva ${codigo} cancelada`);
+            recargar();
+        } catch (e) {
+            notificarError(mensajeDeError(e));
+        }
+    }
+
+
+    const reservas = datos?.contenido ?? [];
 
 
     return (
@@ -68,13 +113,7 @@ export default function ListaReservas() {
             </div>
 
 
-            {cargando && (
-                <div className="d-flex justify-content-center my-5">
-                    <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Cargando…</span>
-                    </div>
-                </div>
-            )}
+            {cargando && <Cargando />}
 
 
             {!cargando && error && <div className="alert alert-danger">{error}</div>}
@@ -88,14 +127,36 @@ export default function ListaReservas() {
             )}
 
 
-            {!cargando && !error && reservas.length > 0 && (
-                <div className="row g-3">
-                    {reservas.map((reserva) => (
-                        <div key={reserva.codigo} className="col-12 col-md-6 col-lg-4">
-                            <TarjetaReserva reserva={reserva} />
-                        </div>
-                    ))}
-                </div>
+            {!cargando && !error && reservas.length > 0 && datos && (
+                <>
+                    <p className="text-body-secondary small">
+                        {datos.totalElementos} reserva(s) · página {datos.paginaActual + 1} de {datos.totalPaginas}
+                    </p>
+                    <div className="row g-3 mb-3">
+                        {reservas.map((reserva) => (
+                            <div key={reserva.codigo} className="col-12 col-md-6 col-lg-4">
+                                <TarjetaReserva
+                                    reserva={reserva}
+                                    acciones={
+                                        <>
+                                            {reserva.estado === 'PENDIENTE' && (
+                                                <button type="button" className="btn btn-sm btn-success" onClick={() => confirmar(reserva.codigo)}>
+                                                    Confirmar
+                                                </button>
+                                            )}
+                                            {(reserva.estado === 'PENDIENTE' || reserva.estado === 'CONFIRMADA') && (
+                                                <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => cancelar(reserva.codigo)}>
+                                                    Cancelar
+                                                </button>
+                                            )}
+                                        </>
+                                    }
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <Paginacion paginaActual={datos.paginaActual} totalPaginas={datos.totalPaginas} alCambiar={cambiarPagina} />
+                </>
             )}
         </section>
     );

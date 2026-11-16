@@ -6,7 +6,7 @@ import { estadoHttp, mensajeDeError } from '../utilidades/errores';
 
 
 export default function Login() {
-    const { iniciarSesion, avisoSesion } = useAuth();
+    const { iniciarSesion } = useAuth();
     const {
         register,
         handleSubmit,
@@ -43,9 +43,6 @@ export default function Login() {
                         </h1>
                     </div>
                     <div className="card-body">
-                        {avisoSesion && <div className="alert alert-warning">{avisoSesion}</div>}
-
-
                         <form onSubmit={handleSubmit(alEnviar)} noValidate>
                             <div className="mb-3">
                                 <label htmlFor="username" className="form-label">Correo electrónico</label>

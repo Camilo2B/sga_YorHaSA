@@ -1,16 +1,20 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router';
+import { Cargando } from './Cargando';
 import { Encabezado } from './Encabezado';
 import { PiePagina } from './PiePagina';
 
 
-// Estructura común a todas las páginas. <Outlet /> es el hueco donde
-// React Router pinta la página de la ruta hija que esté activa.
 export function Layout() {
     return (
         <>
             <Encabezado nombreAlojamiento="Bunker Orbital YorHa S.A" />
             <main className="container py-4">
-                <Outlet />
+                {/* Mientras se descarga el código de una página diferida (lazy), se muestra
+            el indicador. El encabezado y el pie no desaparecen: están fuera del Suspense. */}
+                <Suspense fallback={<Cargando />}>
+                    <Outlet />
+                </Suspense>
             </main>
             <PiePagina />
         </>
