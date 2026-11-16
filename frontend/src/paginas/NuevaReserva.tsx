@@ -27,7 +27,7 @@ function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
         horaEstimadaLlegada: datos.horaEstimadaLlegada || null,
         canalOrigen: 'DIRECTO',
         titular: datos.ocupantes[0],
-        ocupantes: datos.ocupantes,
+        ocupantes: datos.ocupantes.slice(1),
     };
 }
 
