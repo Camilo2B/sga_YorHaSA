@@ -7,10 +7,9 @@ import Inicio from './paginas/Inicio';
 import { RutaProtegida } from './rutas/RutaProtegida';
 import { RutaPublica } from './rutas/RutaPublica';
 
-
 // Carga diferida: el código de cada página se descarga la primera vez que se visita.
 // lazy() necesita una importación dinámica de un módulo con export default.
-const Administracion = lazy(() => import('./paginas/Administracion'));
+const SubirImagenes = lazy(() => import('./paginas/SubirImagenes'));
 const DetalleApartamento = lazy(() => import('./paginas/DetalleApartamento'));
 const ListaReservas = lazy(() => import('./paginas/ListaReservas'));
 const Login = lazy(() => import('./paginas/Login'));
@@ -49,7 +48,7 @@ export default function App() {
 
 
                     <Route element={<RutaProtegida roles={['ADMINISTRADOR']} />}>
-                        <Route path="administracion" element={<Administracion />} />
+                        <Route path="administracion/apartamentos/:identificacion/imagenes" element={<SubirImagenes />} />
                     </Route>
 
 

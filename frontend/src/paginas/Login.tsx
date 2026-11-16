@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { Campo } from '../componentes/Campo';
 import { esquemaLogin, type FormularioLogin } from '../esquemas/login';
 import { useAuth } from '../hooks/useAuth';
 import { estadoHttp, mensajeDeError } from '../utilidades/errores';
@@ -44,32 +45,25 @@ export default function Login() {
                     </div>
                     <div className="card-body">
                         <form onSubmit={handleSubmit(alEnviar)} noValidate>
-                            <div className="mb-3">
-                                <label htmlFor="username" className="form-label">Correo electrónico</label>
-                                <input
-                                    id="username"
-                                    type="email"
-                                    autoComplete="username"
-                                    placeholder="correo@ejemplo.com"
-                                    className={`form-control ${errors.correo ? 'is-invalid' : ''}`}
-                                    {...register('correo')}
-                                />
-                                {/* Bootstrap solo muestra .invalid-feedback si el campo anterior tiene .is-invalid */}
-                                <div className="invalid-feedback">{errors.correo?.message}</div>
-                            </div>
+                            <Campo
+                                id="username"
+                                etiqueta="Correo electrónico"
+                                type="email"
+                                autoComplete="username"
+                                placeholder="correo@ejemplo.com"
+                                error={errors.correo?.message}
+                                {...register('correo')}
+                            />
 
 
-                            <div className="mb-3">
-                                <label htmlFor="password" className="form-label">Contraseña</label>
-                                <input
-                                    id="password"
-                                    type="password"
-                                    autoComplete="current-password"
-                                    className={`form-control ${errors.contrasena ? 'is-invalid' : ''}`}
-                                    {...register('contrasena')}
-                                />
-                                <div className="invalid-feedback">{errors.contrasena?.message}</div>
-                            </div>
+                            <Campo
+                                id="password"
+                                etiqueta="Contraseña"
+                                type="password"
+                                autoComplete="current-password"
+                                error={errors.contrasena?.message}
+                                {...register('contrasena')}
+                            />
 
 
                             <div className="d-grid">

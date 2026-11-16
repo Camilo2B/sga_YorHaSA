@@ -1,19 +1,8 @@
 import type { ReactNode } from 'react';
 import type { EstadoReserva, ReservaResumen } from '../modelos/reserva';
 import { formatearFecha, formatearPesos } from '../utilidades/formato';
+import { EstadoReservaBadge } from './EstadoReservaBadge';
 import estilos from './TarjetaReserva.module.css';
-
-
-// Record<EstadoReserva, string> obliga a cubrir los seis estados:
-// si mañana aparece uno nuevo, TypeScript señala que falta aquí.
-const COLOR_ESTADO: Record<EstadoReserva, string> = {
-    PENDIENTE: 'text-bg-warning',
-    CONFIRMADA: 'text-bg-primary',
-    EN_CURSO: 'text-bg-success',
-    FINALIZADA: 'text-bg-secondary',
-    CANCELADA: 'text-bg-danger',
-    NO_SHOW: 'text-bg-dark',
-};
 
 
 const BORDE_ESTADO: Partial<Record<EstadoReserva, string>> = {
@@ -46,7 +35,7 @@ export function TarjetaReserva({ reserva, acciones }: TarjetaReservaProps) {
         <article className={clases}>
             <div className="card-header d-flex justify-content-between align-items-center">
                 <span className="fw-semibold">{reserva.codigo}</span>
-                <span className={`badge ${COLOR_ESTADO[reserva.estado]}`}>{reserva.estado}</span>
+                <EstadoReservaBadge estado={reserva.estado} />
             </div>
             <div className="card-body">
                 <p className="mb-1"><i className="bi bi-person me-1" aria-hidden="true"></i>{reserva.nombreTitular}</p>
