@@ -4,11 +4,8 @@ import { obtenerToken } from './sesion';
 // Cliente HTTP único de la aplicación: todos los servicios lo usan.
 // La URL ya no está quemada: Vite la toma de .env.development o .env.production.
 export const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
-    timeout: 10_000,
-    // Sin 'Content-Type' fijo: Axios pone application/json para objetos y deja que el
-    // navegador arme multipart/form-data para FormData. Si se fijara application/json,
-    // Axios convertiría el FormData en JSON y los archivos no llegarían (Guía 21).
+    baseURL: import.meta.env.VITE_API_URL?.trim() || '/api',
+    timeout: 70_000,
 });
 
 // ---------- Interceptor de PETICIÓN: agrega el token a todas ----------

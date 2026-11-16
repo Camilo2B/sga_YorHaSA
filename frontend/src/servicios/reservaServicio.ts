@@ -1,3 +1,4 @@
+import type { Pagina } from '../modelos/pagina';
 import type { RespuestaPaginada } from '../modelos/paginacion';
 import { TAMANO_PAGINA } from '../modelos/paginacion';
 import type { CrearReservaRequest, EstadoReserva, ReservaDetalle, ReservaResumen } from '../modelos/reserva';
@@ -15,18 +16,31 @@ export interface ConsultaReservas {
     pagina: number;
 }
 
-// GET /api/reservas?estado=…&titular=…&pagina=0&tamano=10
-// Axios omite los parámetros undefined: un filtro vacío no viaja en la URL.
-// signal permite cancelar la petición si ya no se necesita (AbortController).
+// GET /api/reservas?estado=…&titular=…&page=0&size=10
 export async function listarReservas(
     consulta: ConsultaReservas,
     signal?: AbortSignal,
 ): Promise<RespuestaPaginada<ReservaResumen>> {
-    const respuesta = await api.get<RespuestaPaginada<ReservaResumen>>('/reservas', {
-        params: { ...consulta, tamano: TAMANO_PAGINA },
+    const respuesta = await api.get<Pagina<ReservaResumen>>('/reservas', {
+        params: {
+            estado: consulta.estado,
+            titular: consulta.titular,
+            page: consulta.pagina,      // El backend espera 'page', no 'pagina'
+            size: TAMANO_PAGINA,        // El backend espera 'size', no 'tamano'
+        },
         signal,
     });
-    return respuesta.data;
+
+    const data = respuesta.data;
+
+    // Adaptamos Pagina<T> (Spring) a RespuestaPaginada<T> (Frontend)
+    return {
+        contenido: data.content,
+        paginaActual: data.page.number,
+        totalPaginas: data.page.totalPages,
+        totalElementos: data.page.totalElements,
+        tamanoPagina: data.page.size,
+    };
 }
 
 // PUT /api/reservas/{codigo}/confirmar — sin cuerpo (Guía 07, 4.2)
