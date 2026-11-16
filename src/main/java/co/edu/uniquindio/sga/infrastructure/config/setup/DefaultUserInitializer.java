@@ -6,14 +6,18 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.stream.Stream;
 
 /** Carga un usuario por rol al iniciar (Guía 12, 12.3) */
 @Component
+@ConditionalOnProperty(name = "sga.usuarios-iniciales.habilitados", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
+
 public class DefaultUserInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultUserInitializer.class);
@@ -24,11 +28,12 @@ public class DefaultUserInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (repository.count() > 0) {
-            return;
-        }
-
         props.usuarios().forEach(inicial -> {
+            if (Stream.of(inicial.correo(), inicial.contrasena(), inicial.telefono(),
+                    inicial.documento(), inicial.fechaNacimiento()).anyMatch(valor -> valor == null || valor.isBlank())) {
+                throw new IllegalStateException("Complete los datos de la cuenta inicial del SGA.");
+            }
+            if (repository.existsByCorreo((inicial.correo()))) return;
             UsuarioEntity usuario = new UsuarioEntity();
             usuario.setNombre(inicial.nombre());
             usuario.setCorreo(inicial.correo());

@@ -13,4 +13,6 @@ public interface UsuarioJpaDataRepository extends JpaRepository<UsuarioEntity, L
     boolean existsByCorreoIgnoreCase(String correo);
 
     boolean existsByDocumento(String documento);
+
+    boolean existsByCorreo(String correo);
 }

@@ -24,7 +24,7 @@ public class JwtConfig {
     private final SecretKey clave;
     private final String emisor;
 
-    public JwtConfig(@Value("${sga.jwt.secret}") String secreto,
+    public JwtConfig(@Value("${SGA_JWT_SECRET:${sga.jwt.secret}}") String secreto,
                      @Value("${sga.jwt.emisor}") String emisor) {
         byte[] bytes = secreto.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {

@@ -24,6 +24,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	// --- Seguridad: Spring Security + validación de JWT (Guía 12) ---
 	implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -55,3 +56,8 @@ tasks.named('processResources') {
 		into 'static'
 	}
 }
+
+tasks.named('processResources') {
+	exclude 'application-secrets.properties'
+}
+

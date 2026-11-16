@@ -1,6 +1,7 @@
 package co.edu.uniquindio.sga.infrastructure.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 /** Cadena de filtros de seguridad del SGA (Guía 12) */
@@ -32,10 +34,10 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler accessDeniedHandler;             // 403 de la cadena de filtros en formato ErrorResponse
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, UrlBasedCorsConfigurationSource corsConfigurationSource) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ← Agregado para CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource)) // ← Agregado para CORS
                 // Permite que la consola de H2 se muestre en un iframe del mismo origen
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .authorizeHttpRequests(auth -> auth
@@ -63,16 +65,20 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public UrlBasedCorsConfigurationSource corsConfigurationSource(@Value("${sga.cors.allowed-origins:http://localhost:5173,http://localhost:5175}") String origenes) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));// El servidor de Vite de Camilo
-        config.setAllowedOrigins(List.of("http://localhost:5175"));   // El servidor de Vite de Camilo
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));  // Métodos permitidos
+        config.setAllowedOrigins(Arrays.stream(origenes.split(","))
+                .map(String::trim)
+                .filter(origen -> !origen.isEmpty())
+                .toList());
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
