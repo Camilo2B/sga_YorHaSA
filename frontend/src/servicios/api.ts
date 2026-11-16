@@ -8,13 +8,18 @@ export const api = axios.create({
     timeout: 70_000,
 });
 
-// ---------- Interceptor de PETICIÓN: agrega el token a todas ----------
+// Solo estas rutas son públicas. Los endpoints de gestión de cuentas internas
+// también viven bajo /auth, pero sí deben enviar el JWT del administrador.
+function esAutenticacionPublica(url?: string): boolean {
+    return url === '/auth/login' || url === '/auth/registro';
+}
+
+// ---------- Interceptor de PETICIÓN: agrega el token a todas las rutas privadas ----------
 api.interceptors.request.use((config) => {
     const token = obtenerToken();
     // El login no lleva token: si llevara uno vencido, Spring Security
     // rechazaría la petición con 401 aunque /api/auth/login sea pública.
-    const esAutenticacion = config.url?.startsWith('/auth/');
-    if (token && !esAutenticacion) {
+    if (token && !esAutenticacionPublica(config.url)) {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -39,7 +44,7 @@ api.interceptors.response.use(
         if (
             axios.isAxiosError(error) &&
             error.response?.status === 401 &&
-            !error.config?.url?.startsWith('/auth/')   // un 401 del login son credenciales malas, no sesión vencida
+            !esAutenticacionPublica(error.config?.url)   // un 401 del login/registro público no invalida la sesión
         ) {
             manejadorNoAutorizado?.();
         }

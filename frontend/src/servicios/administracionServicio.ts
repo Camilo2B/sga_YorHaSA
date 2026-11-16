@@ -34,3 +34,36 @@ export async function bloquearApartamento(
     );
     return respuesta.data;
 }
+
+export type RolInterno = 'RECEPCIONISTA' | 'PERSONAL_SERVICIO';
+
+export interface UsuarioInterno {
+    id: number;
+    nombre: string;
+    correo: string;
+    telefono: string;
+    documento: string;
+    fechaNacimiento: string;
+    rol: RolInterno;
+    activo: boolean;
+}
+
+export interface CrearUsuarioInternoRequest {
+    nombre: string;
+    correo: string;
+    contrasena: string;
+    telefono: string;
+    documento: string;
+    fechaNacimiento: string;
+    rol: RolInterno;
+}
+
+export async function listarUsuariosInternos(): Promise<UsuarioInterno[]> {
+    const respuesta = await api.get<UsuarioInterno[]>('/auth/usuarios-internos');
+    return respuesta.data;
+}
+
+export async function crearUsuarioInterno(datos: CrearUsuarioInternoRequest): Promise<UsuarioInterno> {
+    const respuesta = await api.post<UsuarioInterno>('/auth/usuarios-internos', datos);
+    return respuesta.data;
+}

@@ -2,7 +2,9 @@ package co.edu.uniquindio.sga.infrastructure.security;
 
 import co.edu.uniquindio.sga.application.dto.request.LoginRequest;
 import co.edu.uniquindio.sga.application.dto.request.RegistrarHuespedRequest;
+import co.edu.uniquindio.sga.application.dto.request.CrearUsuarioInternoRequest;
 import co.edu.uniquindio.sga.application.dto.response.TokenResponse;
+import co.edu.uniquindio.sga.application.dto.response.UsuarioInternoResponse;
 import co.edu.uniquindio.sga.application.security.SecurityService;
 import co.edu.uniquindio.sga.domain.exception.ReglaDominioException;
 import co.edu.uniquindio.sga.infrastructure.persistence.jpa.UsuarioJpaDataRepository;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 
 /** Implementación del inicio de sesión con Spring Security (Guía 12) */
 @Service
@@ -86,4 +89,56 @@ public class SecurityServiceImpl implements SecurityService {
             throw new ReglaDominioException("Ya existe un usuario registrado con ese correo o documento");
         }
     }
+
+    @Override
+    public UsuarioInternoResponse crearUsuarioInterno(CrearUsuarioInternoRequest request) {
+        String correo = request.correo().trim().toLowerCase(Locale.ROOT);
+        String documento = request.documento().trim();
+
+        if (usuarioRepository.existsByCorreoIgnoreCase(correo)) {
+            throw new ReglaDominioException("Ya existe un usuario registrado con ese correo");
+        }
+        if (usuarioRepository.existsByDocumento(documento)) {
+            throw new ReglaDominioException("Ya existe un usuario registrado con ese documento");
+        }
+
+        // El DTO solo acepta estos dos roles; esta comprobación mantiene la regla también en el servicio.
+        RolUsuario rol = switch (request.rol()) {
+            case "RECEPCIONISTA" -> RolUsuario.RECEPCIONISTA;
+            case "PERSONAL_SERVICIO" -> RolUsuario.PERSONAL_SERVICIO;
+            default -> throw new ReglaDominioException("Solo se pueden crear cuentas de recepción o personal de servicio");
+        };
+
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.setNombre(request.nombre().trim());
+        usuario.setCorreo(correo);
+        usuario.setContrasena(passwordEncoder.encode(request.contrasena()));
+        usuario.setTelefono(request.telefono().trim());
+        usuario.setDocumento(documento);
+        usuario.setFechaNacimiento(request.fechaNacimiento());
+        usuario.setRol(rol);
+        usuario.setActivo(true);
+
+        try {
+            return aResponse(usuarioRepository.saveAndFlush(usuario));
+        } catch (DataIntegrityViolationException e) {
+            throw new ReglaDominioException("Ya existe un usuario registrado con ese correo o documento");
+        }
+    }
+
+    @Override
+    public List<UsuarioInternoResponse> listarUsuariosInternos() {
+        return usuarioRepository.findAllByRolInOrderByNombreAsc(
+                        List.of(RolUsuario.RECEPCIONISTA, RolUsuario.PERSONAL_SERVICIO))
+                .stream()
+                .map(this::aResponse)
+                .toList();
+    }
+
+    private UsuarioInternoResponse aResponse(UsuarioEntity usuario) {
+        return new UsuarioInternoResponse(
+                usuario.getId(), usuario.getNombre(), usuario.getCorreo(), usuario.getTelefono(),
+                usuario.getDocumento(), usuario.getFechaNacimiento(), usuario.getRol().name(), usuario.isActivo());
+    }
+
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { GestionPersonal } from '../componentes/GestionPersonal';
 import type { Apartamento } from '../modelos/apartamento';
 import {
     bloquearApartamento,
@@ -171,6 +172,8 @@ export default function Administracion() {
                     </div>
                 </div>
             )}
+
+            {esAdministrador && <GestionPersonal />}
         </section>
     );
 }
