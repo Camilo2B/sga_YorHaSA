@@ -18,6 +18,7 @@ const NoAutorizado = lazy(() => import('./paginas/NoAutorizado'));
 const NoEncontrada = lazy(() => import('./paginas/NoEncontrada'));
 const NuevaReserva = lazy(() => import('./paginas/NuevaReserva'));
 const Registro = lazy(() => import('./paginas/Registro'));
+const Administracion = lazy(() => import('./paginas/Administracion'));
 
 
 export default function App() {
@@ -59,7 +60,12 @@ export default function App() {
 
 
                     <Route element={<RutaProtegida roles={['ADMINISTRADOR']} />}>
+                        <Route path="administracion" element={<Administracion />} />
                         <Route path="administracion/apartamentos/:identificacion/imagenes" element={<SubirImagenes />} />
+                    </Route>
+
+                    <Route element={<RutaProtegida roles={['RECEPCIONISTA', 'PERSONAL_SERVICIO']} />}>
+                        <Route path="gestion-apartamentos" element={<Administracion />} />
                     </Route>
 
 

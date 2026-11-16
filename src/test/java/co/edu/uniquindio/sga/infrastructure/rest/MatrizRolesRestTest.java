@@ -68,7 +68,6 @@ class MatrizRolesRestTest extends PruebaRestBase {
             new Operacion("POST", "/api/apartamentos", APARTAMENTO),
             new Operacion("PUT", "/api/apartamentos/NO-EXISTE/capacidad", CAPACIDAD),
             new Operacion("PUT", "/api/apartamentos/NO-EXISTE/retirar", null),
-            new Operacion("POST", "/api/apartamentos/NO-EXISTE/bloquear", BLOQUEO),
             new Operacion("POST", "/api/apartamentos/NO-EXISTE/tarifas", TARIFA),
             new Operacion("POST", "/api/alojamiento/temporadas", TEMPORADA),
             new Operacion("POST", "/api/alojamiento/politica-cancelacion", POLITICA));
@@ -77,8 +76,6 @@ class MatrizRolesRestTest extends PruebaRestBase {
     private static final List<Operacion> CONSULTAS_DE_PERSONAL = List.of(
             new Operacion("GET", "/api/apartamentos/NO-EXISTE/tarifas", null),
             new Operacion("GET", "/api/apartamentos/NO-EXISTE/tarifas/" + UUID_NULO, null),
-            new Operacion("GET", "/api/apartamentos/NO-EXISTE/bloqueos", null),
-            new Operacion("GET", "/api/apartamentos/NO-EXISTE/bloqueos/" + UUID_NULO, null),
             new Operacion("GET", "/api/alojamiento/politica-cancelacion", null),
             new Operacion("GET", "/api/alojamiento/politica-cancelacion/1", null),
             new Operacion("GET", "/api/alojamiento/temporadas/" + UUID_NULO, null));
@@ -173,11 +170,16 @@ class MatrizRolesRestTest extends PruebaRestBase {
         for (Operacion o : CONSULTAS_DE_PERSONAL) {
             assertPermitido(tokenRecepcion, o.metodo(), o.ruta(), o.cuerpo());
         }
+        // Recepción puede consultar los bloqueos RN-07.
+        assertPermitido(tokenRecepcion, "GET", "/api/apartamentos/NO-EXISTE/bloqueos", null);
+        assertPermitido(tokenRecepcion, "GET", "/api/apartamentos/NO-EXISTE/bloqueos/" + UUID_NULO, null);
         assertPermitido(tokenRecepcion, "GET", "/api/apartamentos", null);
         assertPermitido(tokenRecepcion, "GET", "/api/reservas", null);
         assertPermitido(tokenRecepcion, "GET", RESERVA_INEXISTENTE + "/folio", null);
         assertPermitido(tokenRecepcion, "POST", RESERVA_INEXISTENTE + "/folio/pagos", PAGO);
         assertPermitido(tokenRecepcion, "POST", "/api/cotizaciones", cotizacion(LocalDate.now().plusDays(90)));
+        // Recepción puede gestionar bloqueos RN-07.
+        assertPermitido(tokenRecepcion, "POST", "/api/apartamentos/NO-EXISTE/bloquear", BLOQUEO);
     }
 
     // ---------------- Personal de servicio ----------------
@@ -202,6 +204,10 @@ class MatrizRolesRestTest extends PruebaRestBase {
         assertPermitido(tokenServicio, "GET", "/api/apartamentos", null);
         assertPermitido(tokenServicio, "PUT", "/api/apartamentos/NO-EXISTE/iniciar-preparacion", null);   // 404: pasó la seguridad
         assertPermitido(tokenServicio, "PUT", "/api/apartamentos/NO-EXISTE/marcar-preparado", null);
+        // El personal de servicio también puede gestionar bloqueos RN-07.
+        assertPermitido(tokenServicio, "POST","/api/apartamentos/NO-EXISTE/bloquear", BLOQUEO);
+        assertPermitido(tokenServicio, "GET","/api/apartamentos/NO-EXISTE/bloqueos", null);
+        assertPermitido(tokenServicio, "GET","/api/apartamentos/NO-EXISTE/bloqueos/" + UUID_NULO, null);
     }
 
     // ---------------- Administrador ----------------
@@ -212,6 +218,9 @@ class MatrizRolesRestTest extends PruebaRestBase {
         for (Operacion o : CONSULTAS_DE_PERSONAL) {
             assertPermitido(tokenAdmin, o.metodo(), o.ruta(), o.cuerpo());
         }
+        // Recepción puede consultar los bloqueos RN-07.
+        assertPermitido(tokenRecepcion, "GET", "/api/apartamentos/NO-EXISTE/bloqueos", null);
+        assertPermitido(tokenRecepcion, "GET", "/api/apartamentos/NO-EXISTE/bloqueos/" + UUID_NULO, null);
         assertPermitido(tokenAdmin, "GET", "/api/apartamentos", null);
         assertPermitido(tokenAdmin, "GET", "/api/reservas", null);
         assertPermitido(tokenAdmin, "PUT", "/api/apartamentos/NO-EXISTE/retirar", null);               // 404: pasó la seguridad

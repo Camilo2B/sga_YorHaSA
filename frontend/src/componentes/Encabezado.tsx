@@ -84,6 +84,11 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
                                     <NavLink to="/administracion" className={claseEnlace}>Administración</NavLink>
                                 </li>
                             )}
+                            {tieneRol('RECEPCIONISTA', 'PERSONAL_SERVICIO') && (
+                                <li className="nav-item">
+                                    <NavLink to="/gestion-apartamentos" className={claseEnlace}>Apartamentos</NavLink>
+                                </li>
+                            )}
                         </ul>
 
 

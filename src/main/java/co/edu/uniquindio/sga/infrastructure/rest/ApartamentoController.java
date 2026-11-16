@@ -8,7 +8,20 @@ import co.edu.uniquindio.sga.application.dto.request.DefinirTarifaRequest;
 import co.edu.uniquindio.sga.application.dto.response.ApartamentoResponse;
 import co.edu.uniquindio.sga.application.dto.response.BloqueoResponse;
 import co.edu.uniquindio.sga.application.dto.response.TarifaResponse;
-import co.edu.uniquindio.sga.application.usecase.*;
+import co.edu.uniquindio.sga.application.usecase.BloquearApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.BuscarApartamentosDisponiblesUseCase;
+import co.edu.uniquindio.sga.application.usecase.CambiarCapacidadApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.ConsultarApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.ConsultarBloqueoUseCase;
+import co.edu.uniquindio.sga.application.usecase.ConsultarTarifaUseCase;
+import co.edu.uniquindio.sga.application.usecase.CrearApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.DefinirTarifaUseCase;
+import co.edu.uniquindio.sga.application.usecase.IniciarPreparacionApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.ListarApartamentosUseCase;
+import co.edu.uniquindio.sga.application.usecase.ListarBloqueosApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.ListarTarifasApartamentoUseCase;
+import co.edu.uniquindio.sga.application.usecase.MarcarApartamentoPreparadoUseCase;
+import co.edu.uniquindio.sga.application.usecase.RetirarApartamentoUseCase;
 import co.edu.uniquindio.sga.domain.entity.Apartamento;
 import co.edu.uniquindio.sga.domain.entity.Bloqueo;
 import co.edu.uniquindio.sga.domain.entity.Tarifa;
@@ -19,7 +32,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -45,8 +66,6 @@ public class ApartamentoController {
     private final IniciarPreparacionApartamentoUseCase iniciarPreparacionApartamentoUseCase;
     private final MarcarApartamentoPreparadoUseCase marcarApartamentoPreparadoUseCase;
     private final ApartamentoMapper mapper;
-    private final LevantarBloqueoUseCase levantarBloqueoUseCase;
-    private final ReactivarApartamentoUseCase reactivarApartamentoUseCase;
 
     public ApartamentoController(CrearApartamentoUseCase crearApartamentoUseCase,
                                  ConsultarApartamentoUseCase consultarApartamentoUseCase,
@@ -62,7 +81,7 @@ public class ApartamentoController {
                                  ConsultarTarifaUseCase consultarTarifaUseCase,
                                  IniciarPreparacionApartamentoUseCase iniciarPreparacionApartamentoUseCase,
                                  MarcarApartamentoPreparadoUseCase marcarApartamentoPreparadoUseCase,
-                                 ApartamentoMapper mapper, LevantarBloqueoUseCase levantarBloqueoUseCase, ReactivarApartamentoUseCase reactivarApartamentoUseCase) {
+                                 ApartamentoMapper mapper) {
         this.crearApartamentoUseCase = crearApartamentoUseCase;
         this.consultarApartamentoUseCase = consultarApartamentoUseCase;
         this.listarApartamentosUseCase = listarApartamentosUseCase;
@@ -78,8 +97,6 @@ public class ApartamentoController {
         this.iniciarPreparacionApartamentoUseCase = iniciarPreparacionApartamentoUseCase;
         this.marcarApartamentoPreparadoUseCase = marcarApartamentoPreparadoUseCase;
         this.mapper = mapper;
-        this.levantarBloqueoUseCase = levantarBloqueoUseCase;
-        this.reactivarApartamentoUseCase = reactivarApartamentoUseCase;
     }
 
     @PostMapping
@@ -130,7 +147,7 @@ public class ApartamentoController {
 
     /** RN-07: bloquea el apartamento en un rango de fechas sin reservas activas. */
     @PostMapping("/{id}/bloquear")
-    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR', 'RECEPCIONISTA', 'PERSONAL_SERVICIO')")
     public ResponseEntity<BloqueoResponse> bloquear(@PathVariable("id") String identificacion,
                                                     @Valid @RequestBody BloquearApartamentoRequest request) {
         Bloqueo creado = bloquearApartamentoUseCase.ejecutar(identificacion, mapper.toBloqueo(request));
@@ -142,7 +159,7 @@ public class ApartamentoController {
     }
 
     @GetMapping("/{identificacion}/bloqueos")
-    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR', 'PERSONAL_SERVICIO')")
     public Page<BloqueoResponse> listarBloqueos(@PathVariable String identificacion,
                                                 @PageableDefault(size = 10) Pageable pageable) {
         return listarBloqueosApartamentoUseCase.ejecutar(identificacion, pageable)
@@ -150,7 +167,7 @@ public class ApartamentoController {
     }
 
     @GetMapping("/{identificacion}/bloqueos/{id}")
-    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyAuthority('RECEPCIONISTA', 'ADMINISTRADOR', 'PERSONAL_SERVICIO')")
     public BloqueoResponse consultarBloqueo(@PathVariable String identificacion, @PathVariable UUID id) {
         return mapper.toBloqueoResponse(identificacion, consultarBloqueoUseCase.ejecutar(identificacion, id));
     }
@@ -196,21 +213,5 @@ public class ApartamentoController {
     @PreAuthorize("hasAnyAuthority('PERSONAL_SERVICIO', 'ADMINISTRADOR')")
     public ApartamentoResponse marcarPreparado(@PathVariable String identificacion) {
         return mapper.toResponse(marcarApartamentoPreparadoUseCase.ejecutar(identificacion));
-    }
-
-    @DeleteMapping("/{identificacion}/bloqueos/{idBloqueo}")
-    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'RECEPCIONISTA')")
-    public ResponseEntity<Void> levantarBloqueo(
-            @PathVariable String identificacion,
-            @PathVariable UUID idBloqueo) {
-        levantarBloqueoUseCase.ejecutar(identificacion, idBloqueo);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{identificacion}/reactivar")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<Void> reactivarApartamento(@PathVariable String identificacion) {
-        reactivarApartamentoUseCase.ejecutar(identificacion);
-        return ResponseEntity.noContent().build();
     }
 }

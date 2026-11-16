@@ -306,21 +306,6 @@ public final class Apartamento {
         return bloqueos.stream().filter(b -> b.id().equals(idBloqueo)).findFirst();
     }
 
-    public void levantarBloqueo(UUID idBloqueo) {
-        Objects.requireNonNull(idBloqueo, "El identificador del bloqueo no puede ser nulo");
-        boolean eliminado = this.bloqueos.removeIf(b -> b.id().equals(idBloqueo));
-        if (!eliminado) {
-            throw new ReglaDominioException("No existe el bloqueo indicado en el apartamento " + identificacion);
-        }
-    }
-
-    public void reactivar() {
-        if (this.activo) {
-            throw new ReglaDominioException("El apartamento " + identificacion + " ya se encuentra activo.");
-        }
-        this.activo = true;
-    }
-
     /**
      * 7.3: cambia la capacidad del apartamento. Sigue siendo un tope rígido (RN-02), por eso debe ser positiva. Que
      * ninguna reserva activa quede por encima de la nueva capacidad necesita el agregado Reserva: lo verifica antes
