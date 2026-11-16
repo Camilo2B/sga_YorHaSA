@@ -12,6 +12,7 @@ import { RutaPublica } from './rutas/RutaPublica';
 const SubirImagenes = lazy(() => import('./paginas/SubirImagenes'));
 const DetalleApartamento = lazy(() => import('./paginas/DetalleApartamento'));
 const ListaReservas = lazy(() => import('./paginas/ListaReservas'));
+const MisReservas = lazy(() => import('./paginas/MisReservas'));
 const Login = lazy(() => import('./paginas/Login'));
 const NoAutorizado = lazy(() => import('./paginas/NoAutorizado'));
 const NoEncontrada = lazy(() => import('./paginas/NoEncontrada'));
@@ -41,9 +42,19 @@ export default function App() {
                     </Route>
 
 
+                    {/* Reservar: el huésped lo hace desde el portal; recepción, a nombre de quien llega */}
+                    <Route element={<RutaProtegida roles={['HUESPED', 'RECEPCIONISTA', 'ADMINISTRADOR']} />}>
+                        <Route path="reservas/nueva" element={<NuevaReserva />} />
+                    </Route>
+
+
                     <Route element={<RutaProtegida roles={['RECEPCIONISTA', 'ADMINISTRADOR']} />}>
                         <Route path="reservas" element={<ListaReservas />} />
-                        <Route path="reservas/nueva" element={<NuevaReserva />} />
+                    </Route>
+
+
+                    <Route element={<RutaProtegida roles={['HUESPED']} />}>
+                        <Route path="mis-reservas" element={<MisReservas />} />
                     </Route>
 
 

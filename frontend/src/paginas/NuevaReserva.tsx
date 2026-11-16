@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm, type Path } from 'react-hook-form';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { esquemaNuevaReserva, type FormularioNuevaReserva } from '../esquemas/reserva';
-import type { CrearReservaRequest } from '../modelos/reserva';
+import { useAuth } from '../hooks/useAuth';
+import type { CanalOrigen, CrearReservaRequest } from '../modelos/reserva';
 import { crearReserva } from '../servicios/reservaServicio';
 import { erroresDeCampo, mensajeDeError } from '../utilidades/errores';
 import { notificarExito } from '../utilidades/notificaciones';
@@ -17,15 +18,15 @@ function claseCampo(error: unknown) {
 }
 
 
-// Del formulario al DTO del backend. El primer ocupante es el titular, y la
-// pantalla es de recepción: el canal de origen es DIRECTO (2.4).
-function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
+// Del formulario al DTO del backend. El primer ocupante es el titular. El canal de origen
+// depende de quién reserva (2.4): el huésped desde el portal (PORTAL), recepción en DIRECTO.
+function aSolicitud(datos: FormularioNuevaReserva, canalOrigen: CanalOrigen): CrearReservaRequest {
     return {
         identificacionApartamento: datos.identificacionApartamento,
         fechaEntrada: datos.fechaEntrada,
         fechaSalida: datos.fechaSalida,
         horaEstimadaLlegada: datos.horaEstimadaLlegada || null,
-        canalOrigen: 'DIRECTO',
+        canalOrigen,
         titular: datos.ocupantes[0],
         ocupantes: datos.ocupantes.slice(1),
     };
@@ -34,6 +35,14 @@ function aSolicitud(datos: FormularioNuevaReserva): CrearReservaRequest {
 
 export default function NuevaReserva() {
     const navigate = useNavigate();
+    const { sesion, tieneRol } = useAuth();
+    // ?apartamento=ATK-001 llega desde el botón "Reservar" del catálogo
+    const [parametros] = useSearchParams();
+
+    // Un huésped reserva a su propio nombre: el backend exige que el titular sea su documento
+    const esHuesped = !tieneRol('RECEPCIONISTA', 'ADMINISTRADOR');
+    const canalOrigen: CanalOrigen = esHuesped ? 'PORTAL' : 'DIRECTO';
+
     const {
         register,
         control,
@@ -44,11 +53,11 @@ export default function NuevaReserva() {
         resolver: zodResolver(esquemaNuevaReserva),
         mode: 'onTouched',
         defaultValues: {
-            identificacionApartamento: '',
+            identificacionApartamento: parametros.get('apartamento') ?? '',
             fechaEntrada: '',
             fechaSalida: '',
             horaEstimadaLlegada: '',
-            ocupantes: [OCUPANTE_VACIO],
+            ocupantes: [esHuesped ? { ...OCUPANTE_VACIO, documento: sesion?.documento ?? '' } : OCUPANTE_VACIO],
         },
     });
 
@@ -59,9 +68,9 @@ export default function NuevaReserva() {
 
     async function alEnviar(datos: FormularioNuevaReserva) {
         try {
-            const reserva = await crearReserva(aSolicitud(datos));
+            const reserva = await crearReserva(aSolicitud(datos, canalOrigen));
             notificarExito(`Reserva ${reserva.codigo} creada en estado PENDIENTE`);
-            navigate('/reservas');
+            navigate(esHuesped ? '/mis-reservas' : '/reservas');
         } catch (error) {
             // 400: el backend dice qué campo falló; se muestra junto al campo
             for (const [campo, mensaje] of Object.entries(erroresDeCampo(error))) {
@@ -76,7 +85,9 @@ export default function NuevaReserva() {
 
     return (
         <section>
-            <h1 className="h3 mb-3">Nueva reserva <small className="text-body-secondary">(recepción)</small></h1>
+            <h1 className="h3 mb-3">
+                Nueva reserva <small className="text-body-secondary">({esHuesped ? 'a su nombre' : 'recepción'})</small>
+            </h1>
 
 
             <form onSubmit={handleSubmit(alEnviar)} noValidate>
@@ -140,6 +151,8 @@ export default function NuevaReserva() {
                                     <input
                                         id={`documento-${indice}`}
                                         className={claseCampo(errors.ocupantes?.[indice]?.documento)}
+                                        // El titular de un huésped es él mismo: su documento viene de la sesión
+                                        readOnly={esHuesped && indice === 0 && !!sesion?.documento}
                                         {...register(`ocupantes.${indice}.documento`)}
                                     />
                                     <div className="invalid-feedback">{errors.ocupantes?.[indice]?.documento?.message}</div>

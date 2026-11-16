@@ -15,6 +15,7 @@ import co.edu.uniquindio.sga.application.usecase.DeclararNoShowUseCase;
 import co.edu.uniquindio.sga.application.usecase.RegistrarLlegadaUseCase;
 import co.edu.uniquindio.sga.application.usecase.RegistrarSalidaUseCase;
 import co.edu.uniquindio.sga.domain.entity.Reserva;
+import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 import co.edu.uniquindio.sga.infrastructure.rest.mapper.ReservaMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -24,18 +25,23 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 
 /** Controller delgado: valida el request, traduce con el mapper y delega en el caso de uso. */
 @RestController
@@ -80,7 +86,9 @@ public class ReservaController {
     @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o choque de fechas")
     @ApiResponse(responseCode = "401", description = "Sin token o token inválido")
     @ApiResponse(responseCode = "403", description = "El rol no lo permite")
-    public ResponseEntity<ReservaDetalleResponse> crear(@Valid @RequestBody CrearReservaRequest request) {
+    public ResponseEntity<ReservaDetalleResponse> crear(@Valid @RequestBody CrearReservaRequest request,
+                                                        @AuthenticationPrincipal Jwt jwt) {
+        exigirTitularPropioSiEsHuesped(request, jwt);
         Reserva creada = crearReservaUseCase.ejecutar(request.identificacionApartamento(), mapper.toSolicitud(request));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{codigo}")
@@ -100,6 +108,23 @@ public class ReservaController {
                                                   @PageableDefault(size = 10) Pageable pageable) {
         return consultarReservasUseCase.ejecutar(filtros.estado(), filtros.identificacionApartamento(), filtros.desde(),
                 filtros.hasta(), pageable).map(mapper::toResumenResponse);
+    }
+
+    /**
+     * Portal del huésped: sus propias reservas (aquellas en las que su documento es el del titular), de la más
+     * reciente a la más antigua, 10 por página. Se declara como ruta literal: tiene prioridad sobre /{codigo}.
+     */
+    @GetMapping("/mias")
+    @PreAuthorize("hasAuthority('HUESPED')")
+    @Operation(summary = "Listar mis reservas", description = "Lista las reservas de las que el huésped autenticado es titular")
+    @ApiResponse(responseCode = "200", description = "Listado obtenido")
+    @ApiResponse(responseCode = "401", description = "Sin token o token inválido")
+    @ApiResponse(responseCode = "403", description = "El rol no lo permite")
+    public Page<ReservaResumenResponse> consultarMias(@RequestParam(required = false) EstadoReserva estado,
+                                                      @PageableDefault(size = 10) Pageable pageable,
+                                                      @AuthenticationPrincipal Jwt jwt) {
+        String documento = jwt.getClaimAsString("documento");
+        return consultarReservasUseCase.ejecutarDelTitular(documento, estado, pageable).map(mapper::toResumenResponse);
     }
 
     @GetMapping("/{codigo}")
@@ -176,5 +201,20 @@ public class ReservaController {
     @ApiResponse(responseCode = "404", description = "Reserva no encontrada")
     public ReservaDetalleResponse declararNoShow(@PathVariable String codigo) {
         return mapper.toDetalleResponse(declararNoShowUseCase.ejecutar(mapper.toCodigo(codigo)));
+    }
+
+    /**
+     * Un huésped solo reserva a su nombre: el titular debe ser el documento de su token. Así toda reserva que crea
+     * es una reserva que después puede ver, cancelar y consultar (7.2). El personal reserva a nombre de cualquiera.
+     */
+    private static void exigirTitularPropioSiEsHuesped(CrearReservaRequest request, Jwt jwt) {
+        List<String> roles = jwt.getClaimAsStringList("roles");
+        boolean esPersonal = roles != null && (roles.contains("RECEPCIONISTA") || roles.contains("ADMINISTRADOR"));
+        if (esPersonal) {
+            return;
+        }
+        if (!request.titular().documento().equals(jwt.getClaimAsString("documento"))) {
+            throw new AccessDeniedException("Un huésped solo puede crear reservas a su propio nombre");
+        }
     }
 }

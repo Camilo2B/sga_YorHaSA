@@ -3,7 +3,7 @@ import type { LoginRequest, Rol, TokenResponse } from '../modelos/auth';
 import { registrarManejadorNoAutorizado } from '../servicios/api';
 import { login } from '../servicios/authServicio';
 import { borrarSesion, guardarSesion, sesionVigente } from '../servicios/sesion';
-import { correoDelToken } from '../utilidades/jwt';
+import { correoDelToken, documentoDelToken } from '../utilidades/jwt';
 import { notificarAviso } from '../utilidades/notificaciones';
 import { ContextoAuth, type Sesion, type ValorAuth } from './contextoAuth';
 
@@ -13,6 +13,7 @@ function aSesion(respuesta: TokenResponse): Sesion {
         token: respuesta.token,
         roles: respuesta.roles,
         correo: correoDelToken(respuesta.token),
+        documento: documentoDelToken(respuesta.token),
         expiraEn: respuesta.expiraEn,
     };
 }

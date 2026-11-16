@@ -43,6 +43,35 @@ export async function listarReservas(
     };
 }
 
+export interface ConsultaMisReservas {
+    estado?: EstadoReserva;
+    pagina: number;
+}
+
+// GET /api/reservas/mias?estado=…&page=0&size=10 — solo las reservas del huésped autenticado
+export async function listarMisReservas(
+    consulta: ConsultaMisReservas,
+    signal?: AbortSignal,
+): Promise<RespuestaPaginada<ReservaResumen>> {
+    const respuesta = await api.get<Pagina<ReservaResumen>>('/reservas/mias', {
+        params: {
+            estado: consulta.estado,
+            page: consulta.pagina,
+            size: TAMANO_PAGINA,
+        },
+        signal,
+    });
+
+    const data = respuesta.data;
+    return {
+        contenido: data.content,
+        paginaActual: data.page.number,
+        totalPaginas: data.page.totalPages,
+        totalElementos: data.page.totalElements,
+        tamanoPagina: data.page.size,
+    };
+}
+
 // PUT /api/reservas/{codigo}/confirmar — sin cuerpo (Guía 07, 4.2)
 export async function confirmarReserva(codigo: string): Promise<ReservaDetalle> {
     const respuesta = await api.put<ReservaDetalle>(`/reservas/${codigo}/confirmar`);

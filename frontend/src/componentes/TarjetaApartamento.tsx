@@ -20,9 +20,14 @@ export function TarjetaApartamento({ apartamento }: TarjetaApartamentoProps) {
                 </p>
             </div>
             <div className="card-footer bg-transparent">
-                <Link to={`/apartamentos/${apartamento.identificacion}`} className="btn btn-outline-primary btn-sm">
-                    Ver detalle
-                </Link>
+                <div className="d-flex gap-2">
+                    <Link to={`/apartamentos/${apartamento.identificacion}`} className="btn btn-outline-primary btn-sm">
+                        Ver detalle
+                    </Link>
+                    <Link to={`/reservas/nueva?apartamento=${apartamento.identificacion}`} className="btn btn-primary btn-sm">
+                        Reservar
+                    </Link>
+                </div>
             </div>
         </article>
     );

@@ -5,6 +5,7 @@ export interface Sesion {
     token: string;
     roles: Rol[];
     correo: string | null;
+    documento: string | null;   // para precargar el titular de las reservas del huésped
     expiraEn: string;
 }
 

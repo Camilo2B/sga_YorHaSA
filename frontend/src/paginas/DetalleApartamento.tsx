@@ -16,6 +16,9 @@ export default function DetalleApartamento() {
             <p>Identificación: {apartamento.identificacion}</p>
             <p>Dormitorios: {apartamento.dormitorios.length}</p>
             <p>Capacidad: {apartamento.capacidad} personas</p>
+            <Link to={`/reservas/nueva?apartamento=${apartamento.identificacion}`} className="btn btn-primary me-2">
+                Reservar este apartamento
+            </Link>
             <Link to="/">Volver</Link>
         </section>
     );

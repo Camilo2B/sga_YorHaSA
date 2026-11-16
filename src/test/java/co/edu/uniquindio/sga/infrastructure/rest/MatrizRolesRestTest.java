@@ -10,6 +10,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Matriz de roles (7.1) comprobada contra la aplicación real, usando los usuarios iniciales (un usuario por rol y dos
@@ -133,6 +135,7 @@ class MatrizRolesRestTest extends PruebaRestBase {
         }
         assertProhibido(tokenHuesped1, "GET", "/api/apartamentos", null);                          // inventario completo
         assertProhibido(tokenHuesped1, "GET", "/api/reservas", null);                              // todas las reservas
+        assertProhibido(tokenRecepcion, "GET", "/api/reservas/mias", null);                        // "mis reservas" es del huésped
         assertProhibido(tokenHuesped1, "PUT", RESERVA_INEXISTENTE + "/confirmar", CONFIRMACION);
         assertProhibido(tokenHuesped1, "PUT", "/api/apartamentos/NO-EXISTE/iniciar-preparacion", null);
         assertProhibido(tokenHuesped1, "POST", RESERVA_INEXISTENTE + "/folio/pagos", PAGO);
@@ -244,5 +247,36 @@ class MatrizRolesRestTest extends PruebaRestBase {
         // El titular puede cancelar la suya
         HttpResponse<String> cancelada = enviar("PUT", ruta + "/cancelar", tokenHuesped1, CANCELACION);
         assertEquals(200, cancelada.statusCode(), cancelada.body());
+    }
+
+    // ---------------- Portal del huésped: reservar y ver sus reservas ----------------
+
+    @Test
+    @DisplayName("El huésped solo reserva a su nombre y 'mis reservas' lista únicamente las suyas")
+    void elHuespedReservaASuNombreYVeSoloSusReservas() {
+        LocalDate entrada = LocalDate.now().plusDays(120);
+
+        // Reservar a nombre de otra persona no está permitido (403 antes de tocar el apartamento)
+        assertProhibido(tokenHuesped1, "POST", "/api/reservas",
+                reserva("NO-EXISTE", entrada, "PORTAL", "1094000222", "Otra Persona"));
+
+        // Cada huésped crea una reserva a su propio nombre
+        HttpResponse<String> deUno = enviar("POST", "/api/reservas", tokenHuesped1,
+                reserva("DFD-001", entrada, "PORTAL", "1094000111", "Laura Gomez"));
+        assertEquals(201, deUno.statusCode(), deUno.body());
+        String codigoDeUno = codigoDeReserva(deUno.body());
+
+        // "Mis reservas" del huésped 1 incluye la suya y devuelve 200
+        HttpResponse<String> mias = enviar("GET", "/api/reservas/mias", tokenHuesped1, null);
+        assertEquals(200, mias.statusCode(), mias.body());
+        assertTrue(mias.body().contains(codigoDeUno), "Debe listar la reserva recién creada");
+
+        // El huésped 2 no ve la reserva del huésped 1
+        HttpResponse<String> deOtro = enviar("GET", "/api/reservas/mias", tokenHuesped2, null);
+        assertEquals(200, deOtro.statusCode(), deOtro.body());
+        assertFalse(deOtro.body().contains(codigoDeUno), "No debe listar reservas ajenas");
+
+        // Sin token no hay acceso
+        assertEquals(401, enviar("GET", "/api/reservas/mias", null, null).statusCode());
     }
 }

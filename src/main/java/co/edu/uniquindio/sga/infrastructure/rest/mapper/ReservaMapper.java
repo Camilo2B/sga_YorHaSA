@@ -84,7 +84,8 @@ public interface ReservaMapper {
                 reserva.getEstancia().salida(),
                 reserva.getTitular().nombre(),
                 reserva.getOcupantes().size(),
-                reserva.getCotizacion().valorTotal().monto().longValueExact());
+                reserva.getCotizacion().valorTotal().monto().longValueExact(),
+                reserva.getCanalOrigen());
     }
 
     default ReservaDetalleResponse toDetalleResponse(Reserva reserva) {

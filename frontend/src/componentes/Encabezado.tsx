@@ -69,6 +69,16 @@ export function Encabezado({ nombreAlojamiento }: EncabezadoProps) {
                                     </li>
                                 </>
                             )}
+                            {tieneRol('HUESPED') && (
+                                <>
+                                    <li className="nav-item">
+                                        <NavLink to="/reservas/nueva" className={claseEnlace}>Reservar</NavLink>
+                                    </li>
+                                    <li className="nav-item">
+                                        <NavLink to="/mis-reservas" className={claseEnlace}>Mis reservas</NavLink>
+                                    </li>
+                                </>
+                            )}
                             {tieneRol('ADMINISTRADOR') && (
                                 <li className="nav-item">
                                     <NavLink to="/administracion" className={claseEnlace}>Administración</NavLink>

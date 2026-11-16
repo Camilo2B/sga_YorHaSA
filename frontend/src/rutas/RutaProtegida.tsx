@@ -22,7 +22,7 @@ export function RutaProtegida({ roles }: RutaProtegidaProps) {
     if (!autenticado) {
         // replace: /reservas no queda en el historial; "Atrás" no devuelve a una página bloqueada.
         // state: el login sabrá a dónde volver después de ingresar.
-        return <Navigate to="/login" replace state={{ desde: ubicacion.pathname }} />;
+        return <Navigate to="/login" replace state={{ desde: ubicacion.pathname + ubicacion.search }} />;
     }
     if (roles && !tieneRol(...roles)) {
         return <Navigate to="/no-autorizado" replace />;

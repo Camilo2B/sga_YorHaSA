@@ -1,5 +1,6 @@
 package co.edu.uniquindio.sga.application.dto.response;
 
+import co.edu.uniquindio.sga.domain.valueobject.CanalOrigen;
 import co.edu.uniquindio.sga.domain.valueobject.EstadoReserva;
 
 import java.time.LocalDate;
@@ -13,7 +14,7 @@ public record ReservaResumenResponse(
         LocalDate fechaSalida,
         String nombreTitular,
         int totalOcupantes,
-        long valorTotal
-
+        long valorTotal,
+        CanalOrigen canalOrigen
 ) {
 }
