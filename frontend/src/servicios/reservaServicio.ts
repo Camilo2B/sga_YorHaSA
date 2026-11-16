@@ -9,13 +9,22 @@ export async function crearReserva(datos: CrearReservaRequest): Promise<ReservaD
     return respuesta.data;
 }
 
-// GET /api/reservas?estado=PENDIENTE&pagina=0&tamano=10 (Guía 08, Ejercicio 2)
+export interface ConsultaReservas {
+    estado?: EstadoReserva;
+    titular?: string;
+    pagina: number;
+}
+
+// GET /api/reservas?estado=…&titular=…&pagina=0&tamano=10
+// Axios omite los parámetros undefined: un filtro vacío no viaja en la URL.
+// signal permite cancelar la petición si ya no se necesita (AbortController).
 export async function listarReservas(
-    estado: EstadoReserva,
-    pagina: number,
+    consulta: ConsultaReservas,
+    signal?: AbortSignal,
 ): Promise<RespuestaPaginada<ReservaResumen>> {
     const respuesta = await api.get<RespuestaPaginada<ReservaResumen>>('/reservas', {
-        params: { estado, pagina, tamano: TAMANO_PAGINA },
+        params: { ...consulta, tamano: TAMANO_PAGINA },
+        signal,
     });
     return respuesta.data;
 }

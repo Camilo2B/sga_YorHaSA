@@ -1,8 +1,11 @@
+import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Cargando } from '../componentes/Cargando';
 import { Paginacion } from '../componentes/Paginacion';
 import { TarjetaReserva } from '../componentes/TarjetaReserva';
+import { useDebounce } from '../hooks/useDebounce';
+import { useFiltros } from '../hooks/useFiltros';
 import type { RespuestaPaginada } from '../modelos/paginacion';
 import type { EstadoReserva, ReservaResumen } from '../modelos/reserva';
 import { cancelarReserva, confirmarReserva, listarReservas } from '../servicios/reservaServicio';
@@ -16,48 +19,56 @@ const ESTADOS: EstadoReserva[] = [
 
 
 export default function ListaReservas() {
-    const [estado, setEstado] = useState<EstadoReserva>('PENDIENTE');
-    const [pagina, setPagina] = useState(0);
-    const [recargas, setRecargas] = useState(0);   // cambiarlo fuerza una nueva consulta
+    // Los filtros ya no son estado local: viven en el contexto y sobreviven a la navegación
+    const { filtros, despachar } = useFiltros();
+    // El texto se guarda en el contexto tecla a tecla, pero la consulta usa su versión estable
+    const titularBuscado = useDebounce(filtros.titular, 400);
+
+
+    const [recargas, setRecargas] = useState(0);
     const [datos, setDatos] = useState<RespuestaPaginada<ReservaResumen> | null>(null);
-    const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
 
-    function prepararConsulta() {
-        setCargando(true);
-        setError(null);
-    }
+    // "¿Está cargando?" se DERIVA: la consulta que se quiere hacer ya no es la última respondida
+    const claveConsulta = `${filtros.estado}|${titularBuscado}|${filtros.pagina}|${recargas}`;
+    const [claveRespondida, setClaveRespondida] = useState<string | null>(null);
+    const cargando = claveRespondida !== claveConsulta;
 
 
-    function cambiarEstado(nuevo: EstadoReserva) {
-        setEstado(nuevo);
-        setPagina(0);   // un filtro nuevo siempre empieza en la primera página
-        prepararConsulta();
-    }
+    useEffect(() => {
+        // Un controlador por petición. Si los filtros cambian antes de que responda,
+        // la limpieza la cancela: una respuesta vieja nunca pinta datos viejos.
+        const controlador = new AbortController();
 
 
-    function cambiarPagina(nueva: number) {
-        setPagina(nueva);
-        prepararConsulta();
-    }
+        listarReservas(
+            {
+                estado: filtros.estado || undefined,
+                titular: titularBuscado.trim() || undefined,
+                pagina: filtros.pagina,
+            },
+            controlador.signal,
+        )
+            .then((respuesta) => {
+                setDatos(respuesta);
+                setError(null);
+                setClaveRespondida(claveConsulta);
+            })
+            .catch((e: unknown) => {
+                if (axios.isCancel(e)) return;   // cancelada a propósito: no es un error
+                setError(mensajeDeError(e));
+                setClaveRespondida(claveConsulta);
+            });
+
+
+        return () => controlador.abort();
+    }, [filtros.estado, titularBuscado, filtros.pagina, recargas, claveConsulta]);
 
 
     function recargar() {
         setRecargas((n) => n + 1);
-        prepararConsulta();
     }
-
-
-    // Paginación del servidor: cada página es una petición con ?pagina=N
-    useEffect(() => {
-        let ignorar = false;
-        listarReservas(estado, pagina)
-            .then((respuesta) => { if (!ignorar) setDatos(respuesta); })
-            .catch((e: unknown) => { if (!ignorar) setError(mensajeDeError(e)); })
-            .finally(() => { if (!ignorar) setCargando(false); });
-        return () => { ignorar = true; };
-    }, [estado, pagina, recargas]);
 
 
     async function confirmar(codigo: string) {
@@ -67,7 +78,7 @@ export default function ListaReservas() {
             notificarExito(`Reserva ${codigo} confirmada`);
             recargar();
         } catch (e) {
-            notificarError(mensajeDeError(e));   // p. ej., 409: falta la hora estimada de llegada (RN-09)
+            notificarError(mensajeDeError(e));
         }
     }
 
@@ -100,35 +111,60 @@ export default function ListaReservas() {
             </div>
 
 
-            <div className="mb-3" style={{ maxWidth: '16rem' }}>
-                <label htmlFor="estado" className="form-label">Estado</label>
-                <select
-                    id="estado"
-                    className="form-select"
-                    value={estado}
-                    onChange={(e) => cambiarEstado(e.target.value as EstadoReserva)}
-                >
-                    {ESTADOS.map((valor) => <option key={valor} value={valor}>{valor}</option>)}
-                </select>
+            {/* Barra de filtros */}
+            <div className="row g-2 align-items-end mb-3 mx-0 p-3 bg-body-tertiary rounded">
+                <div className="col-12 col-md-5">
+                    <label htmlFor="titular" className="form-label">Titular</label>
+                    <div className="input-group">
+                        <span className="input-group-text"><i className="bi bi-search" aria-hidden="true"></i></span>
+                        <input
+                            id="titular"
+                            type="search"
+                            className="form-control"
+                            placeholder="Buscar por nombre…"
+                            value={filtros.titular}
+                            onChange={(e) => despachar({ tipo: 'cambiarTitular', titular: e.target.value })}
+                        />
+                    </div>
+                </div>
+                <div className="col-12 col-md-4">
+                    <label htmlFor="estado" className="form-label">Estado</label>
+                    <select
+                        id="estado"
+                        className="form-select"
+                        value={filtros.estado}
+                        onChange={(e) => despachar({ tipo: 'cambiarEstado', estado: e.target.value as EstadoReserva | '' })}
+                    >
+                        <option value="">Todos</option>
+                        {ESTADOS.map((valor) => <option key={valor} value={valor}>{valor}</option>)}
+                    </select>
+                </div>
+                <div className="col-12 col-md-3 d-grid">
+                    <button type="button" className="btn btn-outline-secondary" onClick={() => despachar({ tipo: 'limpiar' })}>
+                        <i className="bi bi-x-circle me-1" aria-hidden="true"></i>Limpiar filtros
+                    </button>
+                </div>
             </div>
 
 
-            {cargando && <Cargando />}
+            {/* Primera carga: aún no hay nada que mostrar */}
+            {cargando && !datos && <Cargando />}
 
 
             {!cargando && error && <div className="alert alert-danger">{error}</div>}
 
 
-            {!cargando && !error && reservas.length === 0 && (
+            {datos && !error && reservas.length === 0 && !cargando && (
                 <div className="text-center text-body-secondary py-5">
                     <i className="bi bi-inbox fs-1 d-block mb-2" aria-hidden="true"></i>
-                    No hay reservas en estado {estado}.
+                    No hay reservas con esos filtros.
                 </div>
             )}
 
 
-            {!cargando && !error && reservas.length > 0 && datos && (
-                <>
+            {datos && !error && reservas.length > 0 && (
+                // Mientras llega la nueva página, la anterior se atenúa en lugar de desaparecer
+                <div className={cargando ? 'opacity-50' : ''} aria-busy={cargando}>
                     <p className="text-body-secondary small">
                         {datos.totalElementos} reserva(s) · página {datos.paginaActual + 1} de {datos.totalPaginas}
                     </p>
@@ -155,8 +191,12 @@ export default function ListaReservas() {
                             </div>
                         ))}
                     </div>
-                    <Paginacion paginaActual={datos.paginaActual} totalPaginas={datos.totalPaginas} alCambiar={cambiarPagina} />
-                </>
+                    <Paginacion
+                        paginaActual={datos.paginaActual}
+                        totalPaginas={datos.totalPaginas}
+                        alCambiar={(pagina) => despachar({ tipo: 'cambiarPagina', pagina })}
+                    />
+                </div>
             )}
         </section>
     );
