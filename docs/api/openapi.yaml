@@ -3,32 +3,35 @@ info:
   title: SGA - Búnker Orbital YoRHa API
   description: |-
     API OpenAPI 3.1 para el Sistema de Gestión de Alojamiento (SGA) del Búnker Orbital YoRHa.
-    Convención de errores: 400 = la forma del mensaje es inválida (la detectan las validaciones del DTO);
-    404 = el recurso no existe; 409 = el mensaje es válido pero viola una regla de negocio (la detecta el dominio).
-    Todos los errores usan el mismo formato ErrorResponse y nunca incluyen trazas técnicas.
-    Listados: todos se paginan de 10 en 10 (parámetros page, empezando en 0, y size) y responden con el mismo formato
-    de página (content + page).
+    Convención de errores: 400 = la forma del mensaje es inválida (validaciones del DTO); 404 = el recurso no existe;
+    409 = la solicitud es válida, pero viola una regla de negocio. Los errores usan el formato ErrorResponse y no
+    incluyen trazas técnicas.
 
-    **Seguridad.** Todos los endpoints, salvo el login y el registro, exigen el encabezado `Authorization: Bearer <token>`.
-    Sin token, o con un token inválido o vencido, la respuesta es 401 (`NO_AUTENTICADO`). Con un token válido pero sin
-    permiso para la operación, es 403 (`ACCESO_DENEGADO`).
+    Los listados que devuelven páginas utilizan los parámetros page (desde 0) y size (por defecto 10), y responden
+    con el formato de página documentado. La consulta de usuarios internos devuelve una lista sin paginación.
 
-    | Operación | Roles que pueden realizarla |
+    **Seguridad.** Todos los endpoints, salvo login y registro público, requieren `Authorization: Bearer <token>`.
+    Sin token, o con un token inválido o vencido, se responde 401 (`NO_AUTENTICADO`). Con un token válido sin
+    permisos suficientes, se responde 403 (`ACCESO_DENEGADO`).
+
+    | Operación | Roles autorizados |
     |---|---|
-    | Crear, cambiar la capacidad y retirar apartamentos; bloquear; definir tarifas; registrar temporadas; definir la política de cancelación | ADMINISTRADOR |
-    | Consultar tarifas, bloqueos, temporadas y política de cancelación | RECEPCIONISTA, ADMINISTRADOR |
+    | Crear, cambiar capacidad y retirar apartamentos; definir tarifas; registrar temporadas; definir política de cancelación; crear y listar cuentas internas | ADMINISTRADOR |
+    | Bloquear apartamentos y consultar sus bloqueos | ADMINISTRADOR, RECEPCIONISTA, PERSONAL_SERVICIO |
+    | Consultar tarifas, temporadas y políticas de cancelación | RECEPCIONISTA, ADMINISTRADOR |
     | Listar el inventario de apartamentos | RECEPCIONISTA, ADMINISTRADOR, PERSONAL_SERVICIO |
-    | Iniciar la preparación y marcar preparado un apartamento | PERSONAL_SERVICIO, ADMINISTRADOR |
+    | Iniciar preparación y marcar un apartamento como preparado | PERSONAL_SERVICIO, ADMINISTRADOR |
     | Consultar un apartamento, buscar disponibilidad y consultar el alojamiento | Cualquier usuario autenticado |
-    | Cotizar y crear una reserva | HUESPED, RECEPCIONISTA, ADMINISTRADOR |
-    | Listar reservas, confirmar, registrar llegada y salida, declarar no-show | RECEPCIONISTA, ADMINISTRADOR |
-    | Consultar y cancelar una reserva | RECEPCIONISTA, ADMINISTRADOR, o el HUESPED titular de esa reserva |
-    | Consultar el folio | RECEPCIONISTA, ADMINISTRADOR, o el HUESPED titular de la reserva |
-    | Registrar un pago en el folio | RECEPCIONISTA, ADMINISTRADOR |
-  version: 1.0.0
+    | Cotizar y crear reservas | HUESPED, RECEPCIONISTA, ADMINISTRADOR |
+    | Listar todas las reservas; confirmar; registrar llegada y salida; declarar no-show | RECEPCIONISTA, ADMINISTRADOR |
+    | Consultar y cancelar una reserva | RECEPCIONISTA, ADMINISTRADOR, o HUESPED titular de esa reserva |
+    | Consultar las propias reservas | HUESPED |
+    | Consultar el folio | RECEPCIONISTA, ADMINISTRADOR, o HUESPED titular de la reserva |
+    | Registrar pagos en el folio | RECEPCIONISTA, ADMINISTRADOR |
+  version: 1.1.0
 
 security:
-  - bearerAuth: []
+- bearerAuth: []
 
 paths:
   /api/auth/login:
@@ -62,6 +65,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+      tags:
+      - Autenticación
   /api/auth/registro:
     post:
       summary: Registrar un huésped (registro público)
@@ -79,7 +84,8 @@ paths:
         '201':
           description: Huésped registrado. Ya puede iniciar sesión con su correo y contraseña.
         '400':
-          description: La forma del mensaje es inválida (campos faltantes, correo mal escrito, contraseña débil, documento con caracteres no permitidos).
+          description: La forma del mensaje es inválida (campos faltantes, correo mal escrito, contraseña 
+            débil, documento con caracteres no permitidos).
           content:
             application/json:
               schema:
@@ -91,6 +97,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+      tags:
+      - Autenticación
   /api/auth/usuarios-internos:
     get:
       summary: Listar cuentas internas
@@ -109,9 +117,12 @@ paths:
           description: No se proporcionó un token válido.
         '403':
           description: El usuario autenticado no es administrador.
+      tags:
+      - Autenticación
     post:
       summary: Crear una cuenta interna
-      description: Solo el administrador puede crear cuentas RECEPCIONISTA o PERSONAL_SERVICIO. El registro público sigue creando únicamente huéspedes.
+      description: Solo el administrador puede crear cuentas RECEPCIONISTA o PERSONAL_SERVICIO. El registro 
+        público sigue creando únicamente huéspedes.
       operationId: crearUsuarioInterno
       requestBody:
         required: true
@@ -143,6 +154,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+      tags:
+      - Autenticación
   /api/reservas:
     post:
       summary: Crear una nueva reserva (CrearReservaUseCase)
@@ -167,7 +180,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReservaDetalleResponse'
         '400':
-          description: La forma del mensaje es inválida (campos faltantes, JSON malformado o valores no permitidos).
+          description: La forma del mensaje es inválida (campos faltantes, JSON malformado o valores no 
+            permitidos).
           content:
             application/json:
               schema:
@@ -180,50 +194,68 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: >-
-            Regla de negocio violada: entrada anterior a hoy (RN-04), salida no posterior a la entrada (RN-03), titular menor
-            del umbral, ocupante repetido, capacidad superada (RN-02, la mascota ocupa un cupo: RN-Propia-03), mascota en un
-            apartamento que no la permite (RN-Propia-03), apartamento no disponible por reserva solapada o bloqueo (RN-01,
+            Regla de negocio violada: entrada anterior a hoy (RN-04), salida no posterior a la entrada (RN-03),
+            titular menor
+            del umbral, ocupante repetido, capacidad superada (RN-02, la mascota ocupa un cupo: RN-Propia-03), mascota
+            en un
+            apartamento que no la permite (RN-Propia-03), apartamento no disponible por reserva solapada o bloqueo
+            (RN-01,
             RN-07) o sin tiempo de preparación con otra reserva (RN-20), o sin tarifa para alguna noche.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
     get:
       summary: Listar reservas con filtros, de la más reciente a la más antigua (ConsultarReservasUseCase)
       description: >-
-        7.5: todos los filtros son opcionales. Con desde y hasta se traen las reservas que tienen al menos una noche en
+        7.5: todos los filtros son opcionales. Con desde y hasta se traen las reservas que tienen al menos una noche
+        en
         [desde, hasta). El orden es por fecha de creación, de la más reciente a la más antigua.
       operationId: consultarReservas
       parameters:
-        - name: estado
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [PENDIENTE, CONFIRMADA, EN_CURSO, FINALIZADA, CANCELADA, NO_SHOW]
-        - name: identificacionApartamento
-          in: query
-          required: false
-          schema:
-            type: string
-            example: CTL-001
-        - name: desde
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date
-            example: "2026-12-01"
-        - name: hasta
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date
-            example: "2026-12-31"
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - name: estado
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [PENDIENTE, CONFIRMADA, EN_CURSO, FINALIZADA, CANCELADA, NO_SHOW]
+      - name: identificacionApartamento
+        in: query
+        required: false
+        schema:
+          type: string
+          example: CTL-001
+      - name: desde
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+          example: "2026-12-01"
+      - name: hasta
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+          example: "2026-12-31"
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Página de reservas encontradas (10 por página).
@@ -232,23 +264,82 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginaReservaResumen'
         '400':
-          description: Un filtro tiene un formato inválido (estado inexistente, fecha mal escrita) o hasta no es posterior a desde.
+          description: Un filtro tiene un formato inválido (estado inexistente, fecha mal escrita) o hasta no 
+            es posterior a desde.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
+  /api/reservas/mias:
+    get:
+      tags:
+      - Reservas
+      summary: Listar mis reservas
+      description: Devuelve únicamente las reservas cuyo titular corresponde al documento del huésped 
+        autenticado, ordenadas de la más reciente a la más antigua.
+      operationId: consultarMisReservas
+      parameters:
+      - name: estado
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDIENTE
+          - CONFIRMADA
+          - EN_CURSO
+          - FINALIZADA
+          - CANCELADA
+          - NO_SHOW
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de reservas del huésped autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaReservaResumen'
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El endpoint está reservado para usuarios con rol HUESPED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearerAuth: []
   /api/reservas/{codigo}:
     get:
       summary: Consultar detalle de una reserva por su código
       operationId: obtenerReservaPorCodigo
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       responses:
         '200':
           description: Detalle de la reserva consultada.
@@ -263,20 +354,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
   /api/reservas/{codigo}/confirmar:
     put:
       summary: Confirmar una reserva pendiente cobrando el anticipo (ConfirmarReservaUseCase)
       description: >-
-        PENDIENTE -> CONFIRMADA (RN-08). Exige la hora estimada de llegada (RN-09), que todavía esté dentro del plazo de
-        confirmación (RN-21) y cobra el anticipo configurado (50% del valor de la estancia en la Ficha). El cuerpo es opcional.
+        PENDIENTE -> CONFIRMADA (RN-08). Exige la hora estimada de llegada (RN-09), que todavía esté dentro del
+        plazo de
+        confirmación (RN-21) y cobra el anticipo configurado (50% del valor de la estancia en la Ficha). El cuerpo
+        es opcional.
       operationId: confirmarReserva
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       requestBody:
         required: false
         content:
@@ -291,7 +398,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReservaDetalleResponse'
         '400':
-          description: La forma del mensaje es inválida (medio de pago inexistente, hora con formato incorrecto).
+          description: La forma del mensaje es inválida (medio de pago inexistente, hora con formato 
+            incorrecto).
           content:
             application/json:
               schema:
@@ -303,26 +411,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: "Regla de negocio violada: no está PENDIENTE (RN-08), falta la hora estimada de llegada (RN-09), el plazo de confirmación venció (RN-21), falta el medio de pago del anticipo o la hora ya estaba registrada."
+          description: "Regla de negocio violada: no está PENDIENTE (RN-08), falta la hora estimada de llegada (RN-09),
+            el plazo de confirmación venció (RN-21), falta el medio de pago del anticipo o la hora ya estaba registrada."
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
   /api/reservas/{codigo}/cancelar:
     put:
       summary: Cancelar una reserva aplicando la política de retención (CancelarReservaUseCase)
       description: >-
-        Solo desde PENDIENTE o CONFIRMADA (RN-08). La retención se calcula sobre el anticipo pagado, con la versión de la
-        política congelada en la reserva (RN-13) y la antelación hasta el inicio del día de entrada. Libera las noches (RN-12).
+        Solo desde PENDIENTE o CONFIRMADA (RN-08). La retención se calcula sobre el anticipo pagado, con la versión
+        de la
+        política congelada en la reserva (RN-13) y la antelación hasta el inicio del día de entrada. Libera las
+        noches (RN-12).
       operationId: cancelarReserva
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       requestBody:
         required: true
         content:
@@ -355,20 +480,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
   /api/reservas/{codigo}/registrar-llegada:
     put:
       summary: Registrar la llegada del grupo, check-in (RegistrarLlegadaUseCase)
       description: >-
-        La reserva pasa a EN_CURSO y el apartamento a OCUPADO. Solo sobre una reserva CONFIRMADA, desde la fecha de
+        La reserva pasa a EN_CURSO y el apartamento a OCUPADO. Solo sobre una reserva CONFIRMADA, desde la fecha
+        de
         entrada (RN-10) y con el apartamento PREPARADO (RN-11).
       operationId: registrarLlegada
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       responses:
         '200':
           description: Llegada registrada.
@@ -383,25 +523,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: "No procede el registro: la reserva no está CONFIRMADA o no es la fecha de entrada (RN-10), o el apartamento no está PREPARADO (RN-11)."
+          description: "No procede el registro: la reserva no está CONFIRMADA o no es la fecha de entrada (RN-10),
+            o el apartamento no está PREPARADO (RN-11)."
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
   /api/reservas/{codigo}/registrar-salida:
     put:
       summary: Registrar la salida del grupo, check-out (RegistrarSalidaUseCase)
       description: >-
-        La reserva pasa a FINALIZADA y el apartamento a PENDIENTE_PREPARACION. Solo con el folio en paz y salvo (RN-17).
+        La reserva pasa a FINALIZADA y el apartamento a PENDIENTE_PREPARACION. Solo con el folio en paz y salvo
+        (RN-17).
       operationId: registrarSalida
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       responses:
         '200':
           description: Salida registrada.
@@ -422,20 +578,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
   /api/reservas/{codigo}/no-show:
     put:
       summary: Declarar el no-show de una reserva (DeclararNoShowUseCase)
       description: >-
-        Solo una reserva CONFIRMADA y pasada la hora límite del día de entrada (RN-12). Libera las noches y retiene el
+        Solo una reserva CONFIRMADA y pasada la hora límite del día de entrada (RN-12). Libera las noches y retiene
+        el
         anticipo según la política congelada en la reserva (RN-13). También se declara solo, de forma automática.
       operationId: declararNoShow
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       responses:
         '200':
           description: Reserva en NO_SHOW, con el reparto del anticipo entre retenido y devuelto.
@@ -456,18 +627,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Reservas
   /api/reservas/{codigo}/folio:
     get:
       summary: Consultar el folio de una reserva (ConsultarFolioUseCase)
       description: Cargos, pagos y saldo pendiente (RN-15). El saldo es la diferencia entre cargos y pagos.
       operationId: consultarFolio
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       responses:
         '200':
           description: Folio de la reserva.
@@ -482,6 +667,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Folios
   /api/reservas/{codigo}/folio/pagos:
     post:
       summary: Registrar un pago en el folio (RegistrarPagoUseCase)
@@ -490,12 +689,12 @@ paths:
         pendiente. Los movimientos no se modifican ni se eliminan (RN-16), por eso no hay PUT ni DELETE.
       operationId: registrarPago
       parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            example: RES-2026-00001
+      - name: codigo
+        in: path
+        required: true
+        schema:
+          type: string
+          example: RES-2026-00001
       requestBody:
         required: true
         content:
@@ -516,7 +715,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/FolioResponse'
         '400':
-          description: La forma del mensaje es inválida (medio de pago inexistente, valor faltante o menor o igual a cero).
+          description: La forma del mensaje es inválida (medio de pago inexistente, valor faltante o menor o 
+            igual a cero).
           content:
             application/json:
               schema:
@@ -528,24 +728,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: La reserva no admite pagos (no está CONFIRMADA ni EN_CURSO) o el pago supera el saldo pendiente.
+          description: La reserva no admite pagos (no está CONFIRMADA ni EN_CURSO) o el pago supera el saldo 
+            pendiente.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Folios
   /api/apartamentos/{identificacion}/iniciar-preparacion:
     put:
-      summary: El personal de servicio empieza a preparar el apartamento (IniciarPreparacionApartamentoUseCase)
+      summary: El personal de servicio empieza a preparar el apartamento 
+        (IniciarPreparacionApartamentoUseCase)
       description: PENDIENTE_PREPARACION a EN_PREPARACION (7.6).
       operationId: iniciarPreparacionApartamento
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
       responses:
         '200':
           description: Apartamento en preparación.
@@ -566,18 +782,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/marcar-preparado:
     put:
       summary: Dejar el apartamento listo para el siguiente grupo (MarcarApartamentoPreparadoUseCase)
       description: EN_PREPARACION a PREPARADO (7.6).
       operationId: marcarApartamentoPreparado
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
       responses:
         '200':
           description: Apartamento preparado.
@@ -598,6 +828,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos:
     post:
       summary: Registrar un apartamento (CrearApartamentoUseCase)
@@ -622,7 +866,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApartamentoResponse'
         '400':
-          description: La forma del mensaje es inválida (campos faltantes, capacidad menor a 1, estado operativo inexistente, etc.).
+          description: La forma del mensaje es inválida (campos faltantes, capacidad menor a 1, estado 
+            operativo inexistente, etc.).
           content:
             application/json:
               schema:
@@ -634,13 +879,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
     get:
       summary: Listar el inventario de apartamentos (ListarApartamentosUseCase)
       description: Activos y retirados de la venta, ordenados por identificación.
       operationId: listarApartamentos
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Página de apartamentos (10 por página).
@@ -649,54 +908,70 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginaApartamento'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/disponibles:
     get:
-      summary: Buscar apartamentos disponibles por fechas y composición del grupo (BuscarApartamentosDisponiblesUseCase)
+      summary: Buscar apartamentos disponibles por fechas y composición del grupo 
+        (BuscarApartamentosDisponiblesUseCase)
       description: >-
-        7.5: un apartamento está disponible si está activo, admite al grupo (RN-02: adultos y niños cuentan para la
+        7.5: un apartamento está disponible si está activo, admite al grupo (RN-02: adultos y niños cuentan para
+        la
         capacidad; RN-Propia-03: con mascota debe permitir mascotas y la mascota ocupa un cupo), no tiene bloqueos
         (RN-07) ni reservas activas (RN-01) en esas noches y respeta el tiempo de preparación con la reserva anterior
         y la siguiente (RN-20). Ordenados por identificación.
       operationId: buscarApartamentosDisponibles
       parameters:
-        - name: fechaEntrada
-          in: query
-          required: true
-          schema:
-            type: string
-            format: date
-            example: "2026-12-01"
-        - name: fechaSalida
-          in: query
-          required: true
-          schema:
-            type: string
-            format: date
-            example: "2026-12-03"
-        - name: adultos
-          in: query
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-            example: 2
-        - name: ninos
-          in: query
-          required: false
-          description: Si no se envía se asume 0.
-          schema:
-            type: integer
-            minimum: 0
-            example: 1
-        - name: conMascota
-          in: query
-          required: false
-          description: Si no se envía se asume false.
-          schema:
-            type: boolean
-            example: false
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - name: fechaEntrada
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+          example: "2026-12-01"
+      - name: fechaSalida
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+          example: "2026-12-03"
+      - name: adultos
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          example: 2
+      - name: ninos
+        in: query
+        required: false
+        description: Si no se envía se asume 0.
+        schema:
+          type: integer
+          minimum: 0
+          example: 1
+      - name: conMascota
+        in: query
+        required: false
+        description: Si no se envía se asume false.
+        schema:
+          type: boolean
+          example: false
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Página de apartamentos disponibles (10 por página).
@@ -705,7 +980,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginaApartamento'
         '400':
-          description: Falta un parámetro obligatorio o tiene un formato inválido (fecha mal escrita, adultos menor a 1, niños negativos).
+          description: Falta un parámetro obligatorio o tiene un formato inválido (fecha mal escrita, adultos 
+            menor a 1, niños negativos).
           content:
             application/json:
               schema:
@@ -717,18 +993,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/capacidad:
     put:
       summary: Cambiar la capacidad de un apartamento (CambiarCapacidadApartamentoUseCase)
-      description: 7.3. La capacidad sigue siendo un tope rígido (RN-02) y no puede bajar de los cupos que ocupa una reserva activa.
+      description: 7.3. La capacidad sigue siendo un tope rígido (RN-02) y no puede bajar de los cupos que 
+        ocupa una reserva activa.
       operationId: cambiarCapacidadApartamento
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: SNR-001
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: SNR-001
       requestBody:
         required: true
         content:
@@ -755,26 +1046,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Regla de negocio violada (una reserva activa ocupa más cupos que la nueva capacidad, o el apartamento está retirado).
+          description: Regla de negocio violada (una reserva activa ocupa más cupos que la nueva capacidad, o 
+            el apartamento está retirado).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/retirar:
     put:
       summary: Retirar un apartamento de la venta (RetirarApartamentoUseCase)
       description: >-
-        7.3 / 12.4: eliminación lógica. El apartamento queda con activo=false, deja de aparecer como disponible y las
+        7.3 / 12.4: eliminación lógica. El apartamento queda con activo=false, deja de aparecer como disponible
+        y las
         reservas históricas lo siguen referenciando. Solo se permite si no tiene reservas activas ni futuras.
       operationId: retirarApartamento
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: OPR-001
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: OPR-001
       responses:
         '200':
           description: Apartamento retirado de la venta.
@@ -795,17 +1102,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}:
     get:
       summary: Consultar un apartamento por su identificación (ConsultarApartamentoUseCase)
       operationId: consultarApartamento
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
       responses:
         '200':
           description: Apartamento encontrado.
@@ -820,13 +1141,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/alojamiento:
     get:
-      summary: Consultar el alojamiento con sus parámetros, temporadas y política de cancelación vigente (ConsultarAlojamientoUseCase)
+      summary: Consultar el alojamiento con sus parámetros, temporadas y política de cancelación vigente 
+        (ConsultarAlojamientoUseCase)
       operationId: consultarAlojamiento
       responses:
         '200':
-          description: Datos del alojamiento. Los parámetros salen de la configuración del sistema (application.properties).
+          description: Datos del alojamiento. Los parámetros salen de la configuración del sistema 
+            (application.properties).
           content:
             application/json:
               schema:
@@ -838,6 +1175,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Alojamiento
   /api/alojamiento/temporadas:
     post:
       summary: Registrar una temporada (RegistrarTemporadaUseCase)
@@ -862,7 +1213,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/TemporadaResponse'
         '400':
-          description: La forma del mensaje es inválida (nombre vacío, fechas faltantes o con formato incorrecto).
+          description: La forma del mensaje es inválida (nombre vacío, fechas faltantes o con formato 
+            incorrecto).
           content:
             application/json:
               schema:
@@ -874,23 +1226,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Regla de negocio violada (la fecha de fin no es posterior a la de inicio, o la temporada se solapa con otra existente).
+          description: Regla de negocio violada (la fecha de fin no es posterior a la de inicio, o la 
+            temporada se solapa con otra existente).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Alojamiento
   /api/alojamiento/temporadas/{id}:
     get:
       summary: Consultar una temporada por su identificador (ConsultarTemporadaUseCase)
       operationId: consultarTemporada
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Temporada encontrada.
@@ -911,17 +1278,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Alojamiento
   /api/apartamentos/{id}/bloquear:
     post:
       summary: Bloquear un apartamento para mantenimiento o uso administrativo (BloquearApartamentoUseCase)
       operationId: bloquearApartamento
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
       requestBody:
         required: true
         content:
@@ -954,26 +1335,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Conflicto con reservas activas en el rango seleccionado (RN-07), con otro bloqueo existente o fechas invertidas (RN-03).
+          description: Conflicto con reservas activas en el rango seleccionado (RN-07), con otro bloqueo 
+            existente o fechas invertidas (RN-03).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/bloqueos:
     get:
       summary: Listar los bloqueos de un apartamento (ListarBloqueosApartamentoUseCase)
       description: Ordenados por fecha de inicio.
       operationId: listarBloqueosApartamento
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: GNR-001
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: GNR-001
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Página de bloqueos (10 por página).
@@ -988,23 +1384,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/bloqueos/{id}:
     get:
       summary: Consultar un bloqueo de un apartamento (ConsultarBloqueoUseCase)
       operationId: consultarBloqueo
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Bloqueo encontrado.
@@ -1025,6 +1435,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/tarifas:
     post:
       summary: Definir la tarifa de un apartamento para una temporada (DefinirTarifaUseCase)
@@ -1033,12 +1457,12 @@ paths:
         La tarifa nueva debe regir después de la más reciente de esa misma temporada.
       operationId: definirTarifa
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
       requestBody:
         required: true
         content:
@@ -1059,7 +1483,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/TarifaResponse'
         '400':
-          description: La forma del mensaje es inválida (temporada, valor o fecha faltantes, valor menor o igual a cero, identificador que no es UUID).
+          description: La forma del mensaje es inválida (temporada, valor o fecha faltantes, valor menor o 
+            igual a cero, identificador que no es UUID).
           content:
             application/json:
               schema:
@@ -1071,31 +1496,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Regla de negocio violada (la tarifa no rige después de la más reciente de esa temporada).
+          description: Regla de negocio violada (la tarifa no rige después de la más reciente de esa 
+            temporada).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
     get:
       summary: Consultar el histórico de tarifas de un apartamento (ListarTarifasApartamentoUseCase)
-      description: Devuelve las tarifas de la más reciente a la más antigua. Con temporadaId se limita a esa temporada.
+      description: Devuelve las tarifas de la más reciente a la más antigua. Con temporadaId se limita a esa 
+        temporada.
       operationId: listarTarifasApartamento
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
-        - name: temporadaId
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
+      - name: temporadaId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Página del histórico de tarifas (10 por página).
@@ -1116,23 +1557,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/apartamentos/{identificacion}/tarifas/{id}:
     get:
       summary: Consultar una tarifa del histórico de un apartamento (ConsultarTarifaUseCase)
       operationId: consultarTarifa
       parameters:
-        - name: identificacion
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ATK-001
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: identificacion
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ATK-001
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Tarifa encontrada.
@@ -1153,11 +1608,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Apartamentos
   /api/alojamiento/politica-cancelacion:
     post:
       summary: Definir una nueva versión de la política de cancelación (DefinirPoliticaCancelacionUseCase)
       description: >-
-        Agrega una versión nueva; las anteriores se conservan (F-07, RN-13). Mínimo dos tramos, uno de ellos de 0 horas,
+        Agrega una versión nueva; las anteriores se conservan (F-07, RN-13). Mínimo dos tramos, uno de ellos de
+        0 horas,
         sin repetir la antelación mínima, y debe regir después de la versión más reciente.
       operationId: definirPoliticaCancelacion
       requestBody:
@@ -1180,7 +1650,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PoliticaCancelacionResponse'
         '400':
-          description: La forma del mensaje es inválida (sin tramos, retención fuera de 0 a 1, antelación negativa, fecha faltante).
+          description: La forma del mensaje es inválida (sin tramos, retención fuera de 0 a 1, antelación 
+            negativa, fecha faltante).
           content:
             application/json:
               schema:
@@ -1192,19 +1663,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Regla de negocio violada (menos de dos tramos, sin tramo de 0 horas, antelaciones repetidas o vigencia no posterior a la versión más reciente).
+          description: Regla de negocio violada (menos de dos tramos, sin tramo de 0 horas, antelaciones 
+            repetidas o vigencia no posterior a la versión más reciente).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Alojamiento
     get:
       summary: Consultar todas las versiones de la política de cancelación (ListarPoliticasCancelacionUseCase)
       description: De la primera versión a la más reciente.
       operationId: listarPoliticasCancelacion
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Página del historial de versiones (10 por página).
@@ -1219,17 +1705,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Alojamiento
   /api/alojamiento/politica-cancelacion/{version}:
     get:
       summary: Consultar una versión de la política de cancelación (ConsultarPoliticaCancelacionUseCase)
       operationId: consultarPoliticaCancelacion
       parameters:
-        - name: version
-          in: path
-          required: true
-          schema:
-            type: integer
-            example: 1
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          example: 1
       responses:
         '200':
           description: Versión encontrada.
@@ -1250,11 +1750,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Alojamiento
   /api/cotizaciones:
     post:
       summary: Cotizar una estancia (CotizarEstanciaUseCase)
       description: >-
-        Calcula el valor de una estancia noche por noche (RN-05) con la tarifa de la temporada de cada noche, solo los
+        Calcula el valor de una estancia noche por noche (RN-05) con la tarifa de la temporada de cada noche, solo
+        los
         ocupantes facturables a la fecha de entrada (RN-06) y el descuento por estancia prolongada (RN-Propia-01).
         No crea nada: es una consulta, por eso responde 200.
       operationId: cotizarEstancia
@@ -1272,7 +1787,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/CotizacionResponse'
         '400':
-          description: La forma del mensaje es inválida (apartamento, fechas u ocupantes faltantes, fecha de nacimiento futura).
+          description: La forma del mensaje es inválida (apartamento, fechas u ocupantes faltantes, fecha de 
+            nacimiento futura).
           content:
             application/json:
               schema:
@@ -1284,12 +1800,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Regla de negocio violada (salida no posterior a la entrada, ningún ocupante facturable, o el apartamento no tiene tarifa para la temporada de alguna noche).
+          description: Regla de negocio violada (salida no posterior a la entrada, ningún ocupante facturable,
+            o el apartamento no tiene tarifa para la temporada de alguna noche).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+        '401':
+          description: No se proporcionó un token válido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El usuario autenticado no tiene permisos para esta operación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+      - Cotizaciones
 components:
   securitySchemes:
     bearerAuth:
@@ -1311,7 +1842,7 @@ components:
       name: size
       in: query
       required: false
-      description: Elementos por página.
+      description: Cantidad máxima de elementos por página (por defecto, 10).
       schema:
         type: integer
         minimum: 1
@@ -1389,12 +1920,12 @@ components:
     CrearReservaRequest:
       type: object
       required:
-        - identificacionApartamento
-        - fechaEntrada
-        - fechaSalida
-        - canalOrigen
-        - titular
-        - ocupantes
+      - identificacionApartamento
+      - fechaEntrada
+      - fechaSalida
+      - canalOrigen
+      - titular
+      - ocupantes
       properties:
         identificacionApartamento:
           type: string
@@ -1414,7 +1945,8 @@ components:
         horaEstimadaLlegada:
           type: string
           example: "15:30"
-          description: Opcional al crear (obligatoria antes de confirmar, RN-09). Entre las 22:00 y las 05:00 genera el recargo de RN-Propia-02.
+          description: Opcional al crear (obligatoria antes de confirmar, RN-09). Entre las 22:00 y las 05:00 
+            genera el recargo de RN-Propia-02.
         conMascota:
           type: boolean
           default: false
@@ -1430,9 +1962,9 @@ components:
     BloquearApartamentoRequest:
       type: object
       required:
-        - fechaInicio
-        - fechaFin
-        - motivo
+      - fechaInicio
+      - fechaFin
+      - motivo
       properties:
         fechaInicio:
           type: string
@@ -1471,7 +2003,7 @@ components:
     CambiarCapacidadRequest:
       type: object
       required:
-        - capacidad
+      - capacidad
       properties:
         capacidad:
           type: integer
@@ -1510,11 +2042,11 @@ components:
     CrearApartamentoRequest:
       type: object
       required:
-        - identificacion
-        - nombre
-        - capacidad
-        - dormitorios
-        - estadoOperativoInicial
+      - identificacion
+      - nombre
+      - capacidad
+      - dormitorios
+      - estadoOperativoInicial
       properties:
         identificacion:
           type: string
@@ -1536,14 +2068,15 @@ components:
           enum: [PREPARADO, OCUPADO, PENDIENTE_PREPARACION, EN_PREPARACION, FUERA_DE_SERVICIO]
         permiteMascotas:
           type: boolean
-          description: RN-Propia-03. Si no se envía se asume false (el apartamento no recibe reservas con mascota).
+          description: RN-Propia-03. Si no se envía se asume false (el apartamento no recibe reservas con 
+            mascota).
           example: true
 
     DormitorioRequest:
       type: object
       required:
-        - descripcion
-        - tipoCama
+      - descripcion
+      - tipoCama
       properties:
         descripcion:
           type: string
@@ -1592,9 +2125,9 @@ components:
     RegistrarTemporadaRequest:
       type: object
       required:
-        - nombre
-        - fechaInicio
-        - fechaFin
+      - nombre
+      - fechaInicio
+      - fechaFin
       properties:
         nombre:
           type: string
@@ -1631,7 +2164,8 @@ components:
 
     ParametrosResponse:
       type: object
-      description: Parámetros de la Ficha (sección 6). Salen de application.properties, no de la base de datos.
+      description: Parámetros de la Ficha (sección 6). Salen de application.properties, no de la base de 
+        datos.
       properties:
         umbralEdadFacturable:
           type: integer
@@ -1711,9 +2245,9 @@ components:
     DefinirTarifaRequest:
       type: object
       required:
-        - temporadaId
-        - valorPorNoche
-        - vigenteDesde
+      - temporadaId
+      - valorPorNoche
+      - vigenteDesde
       properties:
         temporadaId:
           type: string
@@ -1746,8 +2280,8 @@ components:
     TramoRequest:
       type: object
       required:
-        - antelacionMinimaHoras
-        - porcentajeRetencion
+      - antelacionMinimaHoras
+      - porcentajeRetencion
       properties:
         antelacionMinimaHoras:
           type: integer
@@ -1763,8 +2297,8 @@ components:
     DefinirPoliticaCancelacionRequest:
       type: object
       required:
-        - tramos
-        - vigenteDesde
+      - tramos
+      - vigenteDesde
       properties:
         tramos:
           type: array
@@ -1778,9 +2312,9 @@ components:
     OcupanteRequest:
       type: object
       required:
-        - documento
-        - nombre
-        - fechaNacimiento
+      - documento
+      - nombre
+      - fechaNacimiento
       properties:
         documento:
           type: string
@@ -1799,10 +2333,10 @@ components:
     CotizarEstanciaRequest:
       type: object
       required:
-        - identificacionApartamento
-        - fechaEntrada
-        - fechaSalida
-        - ocupantes
+      - identificacionApartamento
+      - fechaEntrada
+      - fechaSalida
+      - ocupantes
       properties:
         identificacionApartamento:
           type: string
@@ -1879,7 +2413,8 @@ components:
         horaEstimadaLlegada:
           type: string
           example: "15:30"
-          description: Solo si la reserva se creó sin ella (RN-09). Entre las 22:00 y las 05:00 agrega el recargo de RN-Propia-02.
+          description: Solo si la reserva se creó sin ella (RN-09). Entre las 22:00 y las 05:00 agrega el 
+            recargo de RN-Propia-02.
         medioPago:
           type: string
           enum: [TRANSFERENCIA, TARJETA, EFECTIVO]
@@ -1891,7 +2426,7 @@ components:
     CancelarReservaRequest:
       type: object
       required:
-        - motivo
+      - motivo
       properties:
         motivo:
           type: string
@@ -1957,7 +2492,8 @@ components:
         totalCargosFolio:
           type: integer
           format: int64
-          description: Suma de cargos del folio (hospedaje más cargos extra, como el recargo por llegada nocturna).
+          description: Suma de cargos del folio (hospedaje más cargos extra, como el recargo por llegada 
+            nocturna).
           example: 1065000
         moneda:
           type: string
@@ -1976,7 +2512,8 @@ components:
           type: integer
           format: int64
           nullable: true
-          description: Del anticipo pagado, lo que se retiene según la política congelada (RN-13). Solo si está cancelada.
+          description: Del anticipo pagado, lo que se retiene según la política congelada (RN-13). Solo si 
+            está cancelada.
         devueltoPorCancelacion:
           type: integer
           format: int64
@@ -1986,8 +2523,8 @@ components:
     RegistrarPagoRequest:
       type: object
       required:
-        - medioPago
-        - valor
+      - medioPago
+      - valor
       properties:
         medioPago:
           type: string
@@ -2062,17 +2599,19 @@ components:
       type: object
       description: Único formato de error de la API. Nunca contiene trazas técnicas.
       required:
-        - codigoError
-        - mensaje
+      - codigoError
+      - mensaje
       properties:
         codigoError:
           type: string
           description: >-
             Código estable del tipo de error. VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA y
-            SOLICITUD_INVALIDA acompañan a un 400; NO_AUTENTICADO, a un 401; ACCESO_DENEGADO, a un 403; NO_ENCONTRADO, a un 404; METODO_NO_PERMITIDO, a un 405;
+            SOLICITUD_INVALIDA acompañan a un 400; NO_AUTENTICADO, a un 401; ACCESO_DENEGADO, a un 403; NO_ENCONTRADO,
+            a un 404; METODO_NO_PERMITIDO, a un 405;
             TIPO_NO_SOPORTADO, a un 415; REGLA_DOMINIO, a un 409; ERROR_INTERNO, a un 500 (sin detalles técnicos).
-          enum: [VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA, SOLICITUD_INVALIDA, NO_AUTENTICADO, ACCESO_DENEGADO,
-                 NO_ENCONTRADO, METODO_NO_PERMITIDO, TIPO_NO_SOPORTADO, REGLA_DOMINIO, ERROR_INTERNO]
+          enum: [VALIDACION, SOLICITUD_MALFORMADA, SOLICITUD_INCOMPLETA, SOLICITUD_INVALIDA, NO_AUTENTICADO, 
+              ACCESO_DENEGADO, NO_ENCONTRADO, METODO_NO_PERMITIDO, TIPO_NO_SOPORTADO, REGLA_DOMINIO, 
+              ERROR_INTERNO]
           example: REGLA_DOMINIO
         mensaje:
           type: string
@@ -2087,8 +2626,8 @@ components:
     LoginRequest:
       type: object
       required:
-        - correo
-        - contrasena
+      - correo
+      - contrasena
       properties:
         correo:
           type: string
@@ -2102,12 +2641,12 @@ components:
     RegistrarHuespedRequest:
       type: object
       required:
-        - nombre
-        - correo
-        - contrasena
-        - telefono
-        - documento
-        - fechaNacimiento
+      - nombre
+      - correo
+      - contrasena
+      - telefono
+      - documento
+      - fechaNacimiento
       properties:
         nombre:
           type: string
@@ -2144,13 +2683,13 @@ components:
     CrearUsuarioInternoRequest:
       type: object
       required:
-        - nombre
-        - correo
-        - contrasena
-        - telefono
-        - documento
-        - fechaNacimiento
-        - rol
+      - nombre
+      - correo
+      - contrasena
+      - telefono
+      - documento
+      - fechaNacimiento
+      - rol
       properties:
         nombre:
           type: string
@@ -2221,4 +2760,22 @@ components:
           type: array
           items:
             type: string
-          example: [ ROLE_ADMINISTRADOR ]
+          example: [ROLE_ADMINISTRADOR]
+servers:
+- url: http://localhost:8080
+  description: Entorno local
+- url: https://sga-yorhasa-api-camilo-ruiz-tomas-castano.onrender.com
+  description: Backend desplegado
+tags:
+- name: Autenticación
+  description: Inicio de sesión, registro de huéspedes y gestión de cuentas internas
+- name: Reservas
+  description: Creación, consulta y ciclo de vida de las reservas
+- name: Apartamentos
+  description: Inventario, disponibilidad, bloqueos, tarifas y preparación
+- name: Alojamiento
+  description: Configuración general, temporadas y política de cancelación
+- name: Cotizaciones
+  description: Cálculo del valor de una estancia
+- name: Folios
+  description: Consulta de folios y registro de pagos
